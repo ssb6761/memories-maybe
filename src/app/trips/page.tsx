@@ -11,6 +11,9 @@ import {
   updateOnlineTripRef,
   type OnlineTripRef,
 } from "@/lib/onlineTripsRegistry";
+import DestinationPicker from "@/components/DestinationPicker";
+import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
+import { findDestination } from "@/lib/destinations";
 
 function formatRange(start: string, end: string) {
   const s = new Date(start);
@@ -43,7 +46,8 @@ export default function TripsPage() {
   const [onlineDestination, setOnlineDestination] = useState("");
   const [onlineStart, setOnlineStart] = useState("");
   const [onlineEnd, setOnlineEnd] = useState("");
-  const [onlineTravelers, setOnlineTravelers] = useState("나,친구");
+  const [destinationPickerOpen, setDestinationPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [onlineCreating, setOnlineCreating] = useState(false);
   const [onlineError, setOnlineError] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -84,17 +88,26 @@ export default function TripsPage() {
 
   async function handleCreateOnline(e: FormEvent) {
     e.preventDefault();
-    if (!onlineName || !onlineStart || !onlineEnd) return;
+    if (!onlineDestination) {
+      setOnlineError("여행지를 선택해주세요.");
+      return;
+    }
+    if (!onlineStart || !onlineEnd) {
+      setOnlineError("여행 기간을 선택해주세요.");
+      return;
+    }
+    if (!onlineName.trim()) return;
     setOnlineCreating(true);
     setOnlineError("");
     try {
-      const names = onlineTravelers.split(",").map((s) => s.trim()).filter(Boolean);
+      // 동행자 입력칸은 없앴다. 처음엔 "나" 한 명으로 만들고, 같이 가는 사람은 여행 설정 화면에서
+      // 추가하거나 공유 코드로 초대하면 된다.
       const payload = await api.createTrip({
-        name: onlineName,
+        name: onlineName.trim(),
         destination: onlineDestination,
         startDate: onlineStart,
         endDate: onlineEnd,
-        travelerNames: names.length > 0 ? names : ["나"],
+        travelerNames: ["나"],
       });
       setOnlineTrips(
         rememberOnlineTrip({
@@ -206,39 +219,49 @@ export default function TripsPage() {
           <>
             {showOnlineForm && (
               <form onSubmit={handleCreateOnline} className="space-y-3 rounded-xl bg-white p-3">
+                {/* 여행지: 누르면 전체 화면 여행지 선택기(인기 도시 목록)로 넘어간다 */}
+                <button
+                  type="button"
+                  onClick={() => setDestinationPickerOpen(true)}
+                  className="flex w-full items-center justify-between rounded-xl border border-ink-300 px-3 py-2.5 text-left text-sm"
+                >
+                  {onlineDestination ? (
+                    <span className="font-medium text-ink-900">
+                      {findDestination(onlineDestination)?.flag ?? "📍"} {onlineDestination}
+                      {findDestination(onlineDestination) && (
+                        <span className="ml-1 text-xs font-normal text-ink-400">
+                          {findDestination(onlineDestination)!.country}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-ink-400">여행지</span>
+                  )}
+                  <span className="text-ink-300" aria-hidden>›</span>
+                </button>
+                {/* 여행 기간: 한 캘린더에서 출발일~도착일을 차례로 고른다 */}
+                <button
+                  type="button"
+                  onClick={() => setDatePickerOpen(true)}
+                  className="flex w-full items-center justify-between rounded-xl border border-ink-300 px-3 py-2.5 text-left text-sm"
+                >
+                  {onlineStart && onlineEnd ? (
+                    <span className="font-medium text-ink-900">
+                      📅 {formatShortDate(onlineStart)} - {formatShortDate(onlineEnd)}
+                      <span className="ml-1.5 text-xs font-normal text-brand-600">
+                        {formatNights(onlineStart, onlineEnd)}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-ink-400">여행 기간</span>
+                  )}
+                  <span className="text-ink-300" aria-hidden>›</span>
+                </button>
                 <input
                   value={onlineName}
                   onChange={(e) => setOnlineName(e.target.value)}
                   placeholder="여행 이름"
                   required
-                  className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-                />
-                <input
-                  value={onlineDestination}
-                  onChange={(e) => setOnlineDestination(e.target.value)}
-                  placeholder="여행지 (선택)"
-                  className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-                />
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={onlineStart}
-                    onChange={(e) => setOnlineStart(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-                  />
-                  <input
-                    type="date"
-                    value={onlineEnd}
-                    onChange={(e) => setOnlineEnd(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-                  />
-                </div>
-                <input
-                  value={onlineTravelers}
-                  onChange={(e) => setOnlineTravelers(e.target.value)}
-                  placeholder="동행자 (쉼표로 구분)"
                   className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
                 />
                 {onlineError && <p className="text-xs font-medium text-red-500">{onlineError}</p>}
@@ -271,6 +294,29 @@ export default function TripsPage() {
           </>
         )}
       </div>
+
+      <DestinationPicker
+        open={destinationPickerOpen}
+        selected={onlineDestination}
+        onClose={() => setDestinationPickerOpen(false)}
+        onSelect={(city) => {
+          setOnlineDestination(city);
+          setOnlineError("");
+          // 여행 이름을 아직 안 정했으면 "오사카 여행"처럼 자동으로 채워준다(수정 가능).
+          if (!onlineName.trim()) setOnlineName(`${city} 여행`);
+        }}
+      />
+      <DateRangePicker
+        open={datePickerOpen}
+        start={onlineStart}
+        end={onlineEnd}
+        onClose={() => setDatePickerOpen(false)}
+        onConfirm={(start, end) => {
+          setOnlineStart(start);
+          setOnlineEnd(end);
+          setOnlineError("");
+        }}
+      />
 
       <div className="mt-6 space-y-3">
         {(!loaded || !onlineTripsLoaded) && (

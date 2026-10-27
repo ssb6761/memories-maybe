@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Category } from "@/lib/types";
 import { MockPlace, searchMockPlaces } from "@/lib/placesMock";
-import { useGooglePlaceSearch, type GooglePrediction } from "@/lib/useGooglePlaceSearch";
+import { PlaceSearchError, useGooglePlaceSearch, type GooglePrediction } from "@/lib/useGooglePlaceSearch";
 import { isGoogleMapsConfigured, loadGoogleMapsScript } from "@/lib/googleMapsLoader";
 import {
   RecentPlace,
@@ -65,7 +65,12 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
   const [googleResults, setGoogleResults] = useState<GooglePrediction[]>([]);
   const [mockResults, setMockResults] = useState<MockPlace[]>(searchMockPlaces(""));
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [searchedQuery, setSearchedQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 빠르게 타이핑할 때 늦게 도착한 예전 검색 결과가 최신 결과를 덮어쓰지 않도록 요청 번호를 센다.
+  const searchSeqRef = useRef(0);
+  const useGoogle = isGoogleMapsConfigured() && mode !== "unavailable";
 
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<RecentPlace[]>([]);
@@ -93,6 +98,8 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
     setStepStack(["browse"]);
     setQuery("");
     setGoogleResults([]);
+    setSearchError("");
+    setSearchedQuery("");
     setMockResults(searchMockPlaces(""));
     setDraft(EMPTY_DRAFT);
     setCategory("기타");
@@ -113,20 +120,39 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
 
   function runSearch(q: string) {
     const effectiveQuery = q.trim();
+    const seq = ++searchSeqRef.current;
+    setSearchError("");
     if (!effectiveQuery) {
       setGoogleResults([]);
+      setSearchedQuery("");
+      setSearching(false);
       setMockResults(searchMockPlaces(""));
       return;
     }
     addRecentSearch(effectiveQuery);
-    if (mode === "google") {
+    // 스크립트가 아직 로딩 중("checking")이어도 구글 검색으로 보낸다 — search()가 로딩
+    // 완료를 기다린다. 예전엔 이때 발리 샘플 목록에서 검색해버려서 결과가 이상하게 나왔다.
+    if (useGoogle) {
       setSearching(true);
-      search(effectiveQuery).then((results) => {
-        setGoogleResults(results);
-        setSearching(false);
-      });
+      search(effectiveQuery)
+        .then((results) => {
+          if (seq !== searchSeqRef.current) return;
+          setGoogleResults(results);
+          setSearchedQuery(effectiveQuery);
+        })
+        .catch((err) => {
+          if (seq !== searchSeqRef.current) return;
+          setGoogleResults([]);
+          setSearchError(
+            err instanceof PlaceSearchError ? err.message : "검색 중 문제가 생겼어요. 잠시 후 다시 시도해주세요."
+          );
+        })
+        .finally(() => {
+          if (seq === searchSeqRef.current) setSearching(false);
+        });
     } else {
       setMockResults(searchMockPlaces(q));
+      setSearchedQuery(effectiveQuery);
     }
   }
 
@@ -172,7 +198,12 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
 
   async function handlePickGoogle(p: GooglePrediction) {
     const detail = await getDetail(p.placeId);
-    if (!detail) return;
+    if (!detail) {
+      // 상세 조회가 실패해도 이름은 살려서, 좌표 없이라도 추가할 수 있게 넘긴다.
+      setDraft({ name: p.mainText, address: p.secondaryText, lat: "", lng: "" });
+      goTo("confirm");
+      return;
+    }
     setDraft({
       name: detail.name || p.mainText,
       address: detail.address,
@@ -205,7 +236,7 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
 
   // "browse" 단계: 검색창에 포커스하기 전, 지도만 떠 있는 초기 화면
   useEffect(() => {
-    if (step !== "browse" || !isGoogleMapsConfigured()) return;
+    if (!open || step !== "browse" || !isGoogleMapsConfigured()) return;
     let cancelled = false;
     loadGoogleMapsScript().then(() => {
       if (cancelled || !browseMapRef.current) return;
@@ -219,11 +250,14 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [step]);
+    // open을 꼭 같이 봐야 한다. 처음 마운트될 땐 open=false라 지도 div가 없어서 그리지 못하고,
+    // 장소 추가를 눌러 open=true가 돼도 step은 처음부터 "browse"라 그대로였기 때문에 이 effect가
+    // 다시 돌지 않아 지도가 안 떴다(검색 갔다 돌아오면 step이 바뀌어서 그때서야 떴던 것).
+  }, [open, step]);
 
   // "mapPick" 단계: 지도를 움직여서 중앙 핀 위치의 주소를 역지오코딩으로 알아낸다.
   useEffect(() => {
-    if (step !== "mapPick" || !isGoogleMapsConfigured()) return;
+    if (!open || step !== "mapPick" || !isGoogleMapsConfigured()) return;
     let cancelled = false;
     const prevLat = parseFloat(draft.lat);
     const prevLng = parseFloat(draft.lng);
@@ -262,11 +296,11 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [step]);
+  }, [open, step]);
 
   // "confirm" 단계: 좌표가 있으면 작은 지도에 마커 하나로 위치를 미리 보여준다
   useEffect(() => {
-    if (step !== "confirm" || !isGoogleMapsConfigured()) return;
+    if (!open || step !== "confirm" || !isGoogleMapsConfigured()) return;
     const lat = parseFloat(draft.lat);
     const lng = parseFloat(draft.lng);
     if (Number.isNaN(lat) || Number.isNaN(lng)) return;
@@ -284,7 +318,7 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [step, draft.lat, draft.lng]);
+  }, [open, step, draft.lat, draft.lng]);
 
   if (!open) return null;
 
@@ -387,7 +421,39 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
             {step === "customSearch" && (
               <p className="text-[11px] text-ink-400">영어로 검색하면 더 정확한 결과를 찾을 수 있어요.</p>
             )}
-            {mode !== "google" && (
+            {/* "나만의 장소 추가" 버튼은 예전엔 화면 맨 아래에 있어서 손가락이 잘 안 닿았고, 검색창에
+                포커스되면 키보드에 가려 아예 안 보이기도 했다. 검색창 바로 아래로 올렸다. */}
+            {step === "search" && (
+              <button
+                type="button"
+                onClick={() => goTo("customSearch")}
+                className="flex w-full items-center justify-between rounded-xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 active:scale-[0.99]"
+              >
+                <span>찾는 장소가 없나요? 나만의 장소 추가</span>
+                <span aria-hidden>›</span>
+              </button>
+            )}
+            {step === "customSearch" && (
+              <div className="flex gap-2">
+                {isGoogleMapsConfigured() && (
+                  <button
+                    type="button"
+                    onClick={() => goTo("mapPick")}
+                    className="flex-1 rounded-xl bg-brand-50 py-3 text-sm font-semibold text-brand-700 active:scale-[0.99]"
+                  >
+                    📍 지도에서 선택하기
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleManual}
+                  className="flex-1 rounded-xl border border-ink-200 py-3 text-sm font-semibold text-ink-600 active:scale-[0.99]"
+                >
+                  ✏️ 직접 입력하기
+                </button>
+              </div>
+            )}
+            {!useGoogle && (
               <p className="text-[11px] text-ink-400">
                 구글 지도 검색이 설정되어 있지 않아 내장된 간이 목록에서 검색해요. 원하는 장소가
                 없으면 아래 "직접 입력하기"를 사용하세요.
@@ -460,10 +526,20 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
               <>
                 {searching && <p className="py-6 text-center text-sm text-ink-400">검색 중...</p>}
 
-                {!searching && mode === "google" && (
+                {!searching && searchError && (
+                  <p className="my-3 rounded-xl bg-red-50 px-3 py-2.5 text-xs font-medium leading-relaxed text-red-600">
+                    ⚠️ {searchError}
+                  </p>
+                )}
+
+                {!searching && !searchError && useGoogle && (
                   <div className="divide-y divide-ink-100">
                     {googleResults.length === 0 && (
-                      <p className="py-8 text-center text-sm text-ink-400">검색어를 입력해서 장소를 찾아보세요.</p>
+                      <p className="py-8 text-center text-sm text-ink-400">
+                        {searchedQuery
+                          ? `'${searchedQuery}' 검색 결과가 없어요. 다른 이름이나 영어로 검색해보세요.`
+                          : "검색어를 입력해서 장소를 찾아보세요."}
+                      </p>
                     )}
                     {googleResults.map((p) => (
                       <button
@@ -484,7 +560,7 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
                   </div>
                 )}
 
-                {!searching && mode !== "google" && (
+                {!searching && !useGoogle && (
                   <div className="divide-y divide-ink-100">
                     {mockResults.length === 0 && (
                       <p className="py-8 text-center text-sm text-ink-400">검색 결과가 없어요.</p>
@@ -511,37 +587,6 @@ export default function AddPlaceScreen({ open, day, onClose, onAdd }: Props) {
             )}
           </div>
 
-          <div className="space-y-2 border-t border-ink-100 p-3">
-            {step === "search" && (
-              <button
-                type="button"
-                onClick={() => goTo("customSearch")}
-                className="w-full rounded-xl border border-dashed border-ink-300 py-2.5 text-sm font-semibold text-ink-600"
-              >
-                검색 결과에 없어요 · 나만의 장소 추가
-              </button>
-            )}
-            {step === "customSearch" && (
-              <>
-                {isGoogleMapsConfigured() && (
-                  <button
-                    type="button"
-                    onClick={() => goTo("mapPick")}
-                    className="w-full rounded-xl border border-dashed border-ink-300 py-2.5 text-sm font-semibold text-ink-600"
-                  >
-                    지도에서 선택하기
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleManual}
-                  className="w-full py-1.5 text-center text-xs font-medium text-ink-400 underline"
-                >
-                  직접 입력하기
-                </button>
-              </>
-            )}
-          </div>
         </div>
       )}
 

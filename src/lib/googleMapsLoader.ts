@@ -30,7 +30,9 @@ export function loadGoogleMapsScript(): Promise<void> {
   scriptLoadingPromise = new Promise((resolve, reject) => {
     window.__tripPlannerGmapsCallback = () => resolve();
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=__tripPlannerGmapsCallback`;
+    // v=weekly: 새 Places API(AutocompleteSuggestion, Place)가 들어있는 최신 버전을 쓴다.
+    // loading=async: 구글이 권장하는 비동기 로딩 방식(콘솔 경고 방지).
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly&loading=async&language=ko&callback=__tripPlannerGmapsCallback`;
     script.async = true;
     script.onerror = () => {
       scriptLoadingPromise = null; // 실패하면 다음 시도 때 다시 로드할 수 있도록 초기화

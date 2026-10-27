@@ -26,7 +26,9 @@ export default function PlaceSearchInput({ onSelect }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState<GooglePrediction[]>([]);
+  const [searchError, setSearchError] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seqRef = useRef(0);
 
   const mockResults = mode !== "google" ? searchMockPlaces(query) : [];
 
@@ -41,7 +43,18 @@ export default function PlaceSearchInput({ onSelect }: Props) {
       return;
     }
     debounceRef.current = setTimeout(() => {
-      search(value).then(setGooglePredictions);
+      const seq = ++seqRef.current;
+      search(value)
+        .then((results) => {
+          if (seq !== seqRef.current) return;
+          setSearchError("");
+          setGooglePredictions(results);
+        })
+        .catch((err) => {
+          if (seq !== seqRef.current) return;
+          setGooglePredictions([]);
+          setSearchError(err?.message ?? "검색 중 문제가 생겼어요.");
+        });
     }, 250);
   }
 
@@ -113,6 +126,9 @@ export default function PlaceSearchInput({ onSelect }: Props) {
         </div>
       )}
 
+      {searchError && (
+        <p className="mt-1 rounded-lg bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-600">⚠️ {searchError}</p>
+      )}
       <p className="mt-1 text-[11px] text-ink-500">
         {mode === "google"
           ? "구글 지도에서 실시간으로 검색돼요. 원하는 장소가 안 나오면 아래 장소명 · 주소를 직접 입력해도 돼요."
