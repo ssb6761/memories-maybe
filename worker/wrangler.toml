@@ -11,4 +11,4 @@ compatibility_date = "2024-09-25"
 [[d1_databases]]
 binding = "DB"
 database_name = "memories-maybe-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "3c95d8ae-83d5-4727-aaf7-6515b9f15f77"
