@@ -13,6 +13,7 @@ import ExpenseModal from "./ExpenseModal";
 
 interface Props {
   day: number;
+  destination?: string;
   schedule: ScheduleItem[];
   expenses: Expense[];
   travelers: Traveler[];
@@ -30,6 +31,7 @@ interface Props {
 
 export default function ScheduleTimeline({
   day,
+  destination,
   schedule,
   expenses,
   travelers,
@@ -42,6 +44,14 @@ export default function ScheduleTimeline({
 }: Props) {
   const items = useMemo(() => sortedDayItems(schedule, day), [schedule, day]);
   const legs = useMemo(() => buildLegs(items), [items]);
+  // 장소 추가 화면 지도에 미리 보여줄, 이 여행 전체(모든 DAY)에 저장된 장소들
+  const savedPlaces = useMemo(
+    () =>
+      schedule
+        .filter((s) => s.kind !== "memo" && typeof s.lat === "number" && typeof s.lng === "number")
+        .map((s) => ({ name: s.name, lat: s.lat as number, lng: s.lng as number, day: s.day })),
+    [schedule]
+  );
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -173,6 +183,8 @@ export default function ScheduleTimeline({
       <AddPlaceScreen
         open={addPlaceOpen}
         day={day}
+        savedPlaces={savedPlaces}
+        destination={destination}
         onClose={() => setAddPlaceOpen(false)}
         onAdd={(data) => onSave({ day, ...data })}
       />

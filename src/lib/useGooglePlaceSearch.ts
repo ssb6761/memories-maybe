@@ -27,6 +27,15 @@ const API_DISABLED_MESSAGE =
 
 export class PlaceSearchError extends Error {}
 
+// 검색 결과를 이 범위(지금 보고 있는 지도 영역) 근처 장소 위주로 보여달라는 힌트.
+// 범위 밖 장소도 검색은 되지만 순위가 밀린다.
+export interface SearchBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 // PlaceSearchInput(일정 수정 모달 안의 간단 검색)과 AddPlaceScreen(트리플처럼 전체 화면으로
 // 넘어가는 장소 검색) 둘 다에서 쓰는 공용 구글 장소 검색 훅.
 //
@@ -66,13 +75,14 @@ export function useGooglePlaceSearch() {
     return sessionTokenRef.current;
   }
 
-  async function searchNew(input: string): Promise<GooglePrediction[]> {
+  async function searchNew(input: string, bias?: SearchBounds): Promise<GooglePrediction[]> {
     const places = window.google.maps.places;
     if (!places.AutocompleteSuggestion) throw new Error("AutocompleteSuggestion 없음");
     const { suggestions } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
       input,
       sessionToken: sessionTokenRef.current ?? newSessionToken(),
       language: "ko",
+      ...(bias ? { locationBias: bias } : {}),
     });
     return (suggestions ?? [])
       .map((s: any) => s.placePrediction)
@@ -84,7 +94,7 @@ export function useGooglePlaceSearch() {
       }));
   }
 
-  function searchLegacy(input: string): Promise<GooglePrediction[]> {
+  function searchLegacy(input: string, bias?: SearchBounds): Promise<GooglePrediction[]> {
     return new Promise((resolve, reject) => {
       const places = window.google.maps.places;
       if (!places.AutocompleteService) {
@@ -92,7 +102,12 @@ export function useGooglePlaceSearch() {
         return;
       }
       new places.AutocompleteService().getPlacePredictions(
-        { input, sessionToken: sessionTokenRef.current ?? newSessionToken(), language: "ko" },
+        {
+          input,
+          sessionToken: sessionTokenRef.current ?? newSessionToken(),
+          language: "ko",
+          ...(bias ? { locationBias: bias } : {}),
+        },
         (predictions: any[] | null, status: string) => {
           if (status === "ZERO_RESULTS") {
             resolve([]);
@@ -115,21 +130,21 @@ export function useGooglePlaceSearch() {
   }
 
   // 결과가 없으면 빈 배열, API 자체가 막혀 있으면 PlaceSearchError를 던진다.
-  const search = useCallback(async (input: string): Promise<GooglePrediction[]> => {
+  const search = useCallback(async (input: string, bias?: SearchBounds): Promise<GooglePrediction[]> => {
     if (!input.trim() || !isGoogleMapsConfigured()) return [];
     // 스크립트가 아직 로딩 중일 때 입력해도 결과가 나오도록, 매번 로드 완료를 기다린다
     // (이미 로드됐으면 바로 끝난다).
     await loadGoogleMapsScript();
     if (!preferLegacyRef.current) {
       try {
-        return await searchNew(input);
+        return await searchNew(input, bias);
       } catch (err) {
         console.warn("[장소 검색] 새 Places API 실패, 예전 API로 재시도:", err);
         preferLegacyRef.current = true;
       }
     }
     try {
-      return await searchLegacy(input);
+      return await searchLegacy(input, bias);
     } catch (err) {
       console.warn("[장소 검색] 예전 Places API도 실패:", err);
       // 다음 검색 때 새 API를 다시 시도해볼 수 있도록 초기화 (콘솔에서 막 켰을 수도 있음)

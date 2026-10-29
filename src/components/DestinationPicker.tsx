@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   DESTINATION_REGIONS,
-  POPULAR_DESTINATIONS,
   searchDestinations,
   type Destination,
 } from "@/lib/destinations";
@@ -16,7 +15,7 @@ interface Props {
 }
 
 // 여행 만들기에서 "여행지"를 누르면 뜨는 전체 화면 선택기.
-// 맨 위 검색창 → 인기 여행지 칩 → 지역 탭 + 도시 목록 순서.
+// 맨 위 검색창 → 지역 탭 + 도시 목록 순서.
 // 목록에 없는 곳은 검색어를 그대로 여행지로 쓸 수 있게 "직접 입력" 버튼을 보여준다.
 export default function DestinationPicker({ open, selected, onClose, onSelect }: Props) {
   const [query, setQuery] = useState("");
@@ -124,26 +123,6 @@ export default function DestinationPicker({ open, selected, onClose, onSelect }:
           </div>
         ) : (
           <>
-            <div className="px-4 pb-3">
-              <p className="mb-2 text-xs font-semibold text-ink-500">인기 여행지</p>
-              <div className="flex flex-wrap gap-2">
-                {POPULAR_DESTINATIONS.map((d) => (
-                  <button
-                    key={d.city}
-                    type="button"
-                    onClick={() => pick(d.city)}
-                    className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-                      selected === d.city
-                        ? "border-brand-600 bg-brand-600 text-white"
-                        : "border-ink-200 text-ink-700 active:bg-ink-50"
-                    }`}
-                  >
-                    {d.flag} {d.city}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="flex gap-1 overflow-x-auto border-b border-ink-100 px-4 [scrollbar-width:none]">
               {DESTINATION_REGIONS.map((r) => (
                 <button

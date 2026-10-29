@@ -68,14 +68,14 @@ export default function ScheduleItemCard({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") onClick();
         }}
-        className={`mb-1 flex-1 cursor-pointer rounded-2xl border bg-white p-3.5 text-left shadow-card transition
+        className={`mb-1 min-w-0 flex-1 cursor-pointer rounded-2xl border bg-white p-3.5 text-left shadow-card transition
                     ${selected ? "border-brand-500 ring-2 ring-brand-100" : "border-ink-100"}
                     ${dragging ? "opacity-40" : "opacity-100"} active:scale-[0.99]`}
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {isMemo ? (
-              <p className="whitespace-pre-wrap text-sm text-ink-700">{item.memo}</p>
+              <p className="whitespace-pre-wrap break-words text-sm text-ink-700">{item.memo}</p>
             ) : (
               <>
                 <div className="flex items-center gap-1.5">
@@ -86,7 +86,7 @@ export default function ScheduleItemCard({
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-xs text-ink-500">
+                <p className="mt-0.5 truncate text-xs text-ink-500">
                   {item.category}
                   {item.address ? ` · ${item.address}` : ""}
                 </p>

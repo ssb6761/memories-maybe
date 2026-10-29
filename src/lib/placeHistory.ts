@@ -71,3 +71,14 @@ export function addRecentlyViewed(place: RecentPlace) {
   list.unshift({ ...place, name });
   writeList(RECENTLY_VIEWED_KEY, list.slice(0, MAX_ITEMS));
 }
+
+export function removeRecentlyViewed(place: RecentPlace) {
+  writeList(
+    RECENTLY_VIEWED_KEY,
+    getRecentlyViewed().filter((item) => !(item.name === place.name && item.address === place.address))
+  );
+}
+
+export function clearRecentlyViewed() {
+  writeList(RECENTLY_VIEWED_KEY, []);
+}
