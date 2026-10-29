@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Category, Expense, ScheduleItem, Traveler } from "@/lib/types";
 import { buildLegs, sortedDayItems } from "@/lib/scheduleUtils";
 import { formatDistance } from "@/lib/distance";
-import { placeNumbers } from "@/lib/mapHelpers";
+import { isPlaceItem, placeNumbers } from "@/lib/mapHelpers";
 import ScheduleItemCard from "./ScheduleItemCard";
 import ScheduleItemModal from "./ScheduleItemModal";
 import AddPlaceScreen, { type SavedPlacePin } from "./AddPlaceScreen";
 import MemoModal from "./MemoModal";
+import FlightModal from "./FlightModal";
 import ExpenseModal from "./ExpenseModal";
 
 interface Props {
@@ -75,7 +76,7 @@ export default function ScheduleTimeline({
   const savedPlaces: SavedPlacePin[] = useMemo(
     () =>
       items
-        .filter((s) => s.kind !== "memo" && typeof s.lat === "number" && typeof s.lng === "number")
+        .filter((s) => isPlaceItem(s) && typeof s.lat === "number" && typeof s.lng === "number")
         .map((s) => ({
           id: s.id,
           name: s.name,
@@ -95,12 +96,21 @@ export default function ScheduleTimeline({
   const [addPlaceOpen, setAddPlaceOpen] = useState(false);
   const [memoModalOpen, setMemoModalOpen] = useState(false);
   const [editingMemo, setEditingMemo] = useState<ScheduleItem | undefined>(undefined);
+  // "항공 및 메모 추가"를 누르면 먼저 항공편/메모 중 고르는 작은 시트가 뜬다.
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
+  const [flightModalOpen, setFlightModalOpen] = useState(false);
+  const [editingFlight, setEditingFlight] = useState<ScheduleItem | undefined>(undefined);
 
   // 일정 수정 화면 하단의 "비용 추가" 버튼으로 여는 지출 입력 모달
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [expenseTarget, setExpenseTarget] = useState<ScheduleItem | undefined>(undefined);
 
   function openEdit(item: ScheduleItem) {
+    if (item.kind === "flight") {
+      setEditingFlight(item);
+      setFlightModalOpen(true);
+      return;
+    }
     if (item.kind === "memo") {
       setEditingMemo(item);
       setMemoModalOpen(true);
@@ -227,13 +237,10 @@ export default function ScheduleTimeline({
             📍 장소 추가
           </button>
           <button
-            onClick={() => {
-              setEditingMemo(undefined);
-              setMemoModalOpen(true);
-            }}
-            className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-dashed border-ink-300 bg-ink-100/60 py-3 text-sm font-semibold text-ink-600 active:scale-[0.99]"
+            onClick={() => setAddChoiceOpen(true)}
+            className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-dashed border-ink-300 bg-ink-100/60 py-3 text-sm font-semibold text-ink-600 active:scale-[0.99]"
           >
-            📝 메모 추가
+            항공 및 메모 추가
           </button>
           {items.length > 1 && (
             <button
@@ -272,6 +279,59 @@ export default function ScheduleTimeline({
         destination={destination}
         onClose={() => setAddPlaceOpen(false)}
         onAdd={(data) => onSave({ day, ...data })}
+      />
+
+      {addChoiceOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center"
+          onClick={() => setAddChoiceOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl bg-white p-5 pb-12 shadow-pop animate-fade-in md:rounded-2xl md:pb-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-4 text-base font-bold text-ink-900">DAY {day}에 무엇을 추가할까요?</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setAddChoiceOpen(false);
+                  setEditingFlight(undefined);
+                  setFlightModalOpen(true);
+                }}
+                className="flex flex-col items-center gap-1.5 rounded-2xl border border-sky-200 bg-sky-50 py-5 text-sm font-semibold text-sky-700 active:scale-[0.98]"
+              >
+                <span className="text-2xl">✈️</span>
+                항공편
+              </button>
+              <button
+                onClick={() => {
+                  setAddChoiceOpen(false);
+                  setEditingMemo(undefined);
+                  setMemoModalOpen(true);
+                }}
+                className="flex flex-col items-center gap-1.5 rounded-2xl border border-ink-200 bg-ink-50 py-5 text-sm font-semibold text-ink-700 active:scale-[0.98]"
+              >
+                <span className="text-2xl">📝</span>
+                메모
+              </button>
+            </div>
+            <button
+              onClick={() => setAddChoiceOpen(false)}
+              className="mt-3 w-full py-2 text-sm font-medium text-ink-400"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
+      <FlightModal
+        open={flightModalOpen}
+        day={day}
+        initial={editingFlight}
+        onClose={() => setFlightModalOpen(false)}
+        onSave={onSave}
+        onDelete={editingFlight ? () => onDelete(editingFlight.id) : undefined}
       />
 
       <MemoModal

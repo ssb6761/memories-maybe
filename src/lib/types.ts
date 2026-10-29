@@ -54,6 +54,19 @@ export interface Trip {
   updatedAt: string;
 }
 
+// 항공편 일정의 세부 정보. ScheduleItem.kind가 "flight"일 때만 들어간다.
+// (출발 시각은 ScheduleItem.time, 편명은 ScheduleItem.name에 같이 저장해서 목록 정렬/표시에 그대로 쓴다.)
+export interface FlightInfo {
+  flightNo: string; // "KE053"
+  airline?: string; // "대한항공"
+  depAirport?: string; // "인천 ICN"
+  arrAirport?: string; // "호놀룰루 HNL"
+  depTime?: string; // "HH:mm"
+  arrTime?: string; // "HH:mm"
+  arrNextDay?: boolean; // 다음날 도착
+  bookingRef?: string; // 예약번호
+}
+
 export interface ScheduleItem {
   id: string;
   tripId: string;
@@ -64,7 +77,9 @@ export interface ScheduleItem {
   category: Category;
   // "memo"면 장소 없이 텍스트만 있는 메모 항목(트리플의 "메모 추가"). 없으면 기존처럼 장소 항목("place")로
   // 취급한다 — 예전 데이터와의 호환을 위해 optional로 두고 undefined는 "place"와 동일하게 다룬다.
-  kind?: "place" | "memo";
+  // "flight"는 항공편 항목(세부 정보는 flight 필드).
+  kind?: "place" | "memo" | "flight";
+  flight?: FlightInfo;
   address?: string;
   lat?: number;
   lng?: number;

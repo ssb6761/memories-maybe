@@ -108,13 +108,18 @@ export function createMapLabel(map: any, position: { lat: number; lng: number },
   return label;
 }
 
-// 메모는 번호를 매기지 않고, 장소만 1, 2, 3... 순서로 번호를 매긴다.
+// 메모·항공편은 번호를 매기지 않고, 장소만 1, 2, 3... 순서로 번호를 매긴다.
 // 일정 카드와 지도 핀이 항상 같은 번호를 쓰도록 이 함수 하나로 계산한다.
 export function placeNumbers<T extends { id: string; kind?: string }>(items: T[]): Map<string, number> {
   const map = new Map<string, number>();
   let n = 0;
   items.forEach((i) => {
-    if (i.kind !== "memo") map.set(i.id, ++n);
+    if (isPlaceItem(i)) map.set(i.id, ++n);
   });
   return map;
+}
+
+// 지도 핀과 번호를 갖는 "장소" 항목인지 (예전 데이터는 kind가 없어서 undefined도 장소로 본다)
+export function isPlaceItem(i: { kind?: string }) {
+  return !i.kind || i.kind === "place";
 }

@@ -33,6 +33,8 @@ export default function ScheduleItemCard({
   onMoveDown,
 }: Props) {
   const isMemo = item.kind === "memo";
+  const isFlight = item.kind === "flight";
+  const flight = item.flight;
   const color = categoryColor(item.category);
   const expenseTotal = linkedExpenses.reduce((sum, e) => sum + e.amountKRW, 0);
 
@@ -44,6 +46,10 @@ export default function ScheduleItemCard({
         {isMemo ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-100 text-sm">
             📝
+          </span>
+        ) : isFlight ? (
+          <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm">
+            ✈️
           </span>
         ) : (
           <span
@@ -69,9 +75,31 @@ export default function ScheduleItemCard({
                     ${reorderMode ? "cursor-default" : "cursor-pointer active:scale-[0.99]"}
                     ${selected ? "border-brand-500 ring-2 ring-brand-100" : "border-ink-100"}`}
       >
-        <div className="flex items-start justify-between gap-2">
+        {/* items-center: 오른쪽 연필 버튼(28px)이 한 줄짜리 글자(20px)보다 높아서, 위쪽 정렬이면
+            한 줄 메모가 박스 위쪽에 붙어 보였다. 글자와 버튼을 세로 가운데로 맞춘다. */}
+        <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            {isMemo ? (
+            {isFlight ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate font-semibold text-ink-900">{flight?.flightNo ?? item.name}</span>
+                  {flight?.airline && <span className="truncate text-xs text-ink-500">{flight.airline}</span>}
+                </div>
+                {(flight?.depAirport || flight?.arrAirport || flight?.arrTime) && (
+                  <p className="mt-0.5 truncate text-xs text-ink-600">
+                    {flight?.depAirport ?? "출발"}
+                    {flight?.depTime ? ` ${flight.depTime}` : ""}
+                    {" → "}
+                    {flight?.arrAirport ?? "도착"}
+                    {flight?.arrTime ? ` ${flight.arrTime}` : ""}
+                    {flight?.arrNextDay ? " (+1)" : ""}
+                  </p>
+                )}
+                {!reorderMode && item.memo && (
+                  <p className="mt-1 text-xs text-ink-400 line-clamp-2">{item.memo}</p>
+                )}
+              </>
+            ) : isMemo ? (
               <p
                 className={`break-words text-sm text-ink-700 ${
                   reorderMode ? "truncate" : "whitespace-pre-wrap"
@@ -130,7 +158,7 @@ export default function ScheduleItemCard({
                 onEdit();
               }}
               className="shrink-0 rounded-full p-1.5 text-ink-300 hover:bg-ink-100 hover:text-ink-600"
-              aria-label={isMemo ? "메모 수정" : "일정 수정"}
+              aria-label={isMemo ? "메모 수정" : isFlight ? "항공편 수정" : "일정 수정"}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path

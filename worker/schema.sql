@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS schedule_items (
   time TEXT,
   name TEXT NOT NULL,
   category TEXT NOT NULL,
-  kind TEXT NOT NULL DEFAULT 'place', -- 'place' | 'memo' (트리플 "메모 추가"처럼 장소 없는 메모)
+  kind TEXT NOT NULL DEFAULT 'place', -- 'place' | 'memo' | 'flight'
+  flight_json TEXT, -- kind='flight'일 때 항공편 세부 정보(JSON)
   address TEXT,
   lat REAL,
   lng REAL,

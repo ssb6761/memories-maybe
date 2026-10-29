@@ -397,6 +397,7 @@ export function useTrip(tripId: string) {
         name: item.name,
         category: item.category,
         kind: item.kind,
+        flight: item.flight,
         time: item.time,
         address: item.address,
         lat: item.lat,

@@ -60,7 +60,8 @@ export function rowToScheduleItem(row: any) {
     time: row.time ?? undefined,
     name: row.name,
     category: row.category,
-    kind: row.kind === "memo" ? "memo" : "place",
+    kind: row.kind === "memo" || row.kind === "flight" ? row.kind : "place",
+    flight: parseFlight(row.flight_json),
     address: row.address ?? undefined,
     lat: row.lat ?? undefined,
     lng: row.lng ?? undefined,
@@ -106,5 +107,14 @@ function safeJsonArray(text: string | null | undefined): string[] {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function parseFlight(raw: unknown) {
+  if (typeof raw !== "string" || !raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
   }
 }

@@ -151,18 +151,20 @@ export default {
           const body = await request.json<any>();
           const now = nowIso();
 
-          const kind = body.kind === "memo" ? "memo" : "place";
+          const kind = body.kind === "memo" || body.kind === "flight" ? body.kind : "place";
+          // 항공편 세부 정보(편명/공항/도착 시각 등)는 JSON 문자열로 한 칸에 저장한다.
+          const flightJson = kind === "flight" && body.flight ? JSON.stringify(body.flight) : null;
 
           if (body.id) {
             await db
               .prepare(
                 `UPDATE schedule_items SET day=?, time=?, name=?, category=?, kind=?, address=?, lat=?, lng=?, memo=?,
-                 reserved=?, cost=?, currency=?, transport_to_next=?, updated_at=? WHERE id=? AND trip_id=?`
+                 reserved=?, cost=?, currency=?, transport_to_next=?, flight_json=?, updated_at=? WHERE id=? AND trip_id=?`
               )
               .bind(
                 body.day, body.time ?? null, body.name, body.category, kind, body.address ?? null,
                 body.lat ?? null, body.lng ?? null, body.memo ?? null, body.reserved ? 1 : 0,
-                body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, now, body.id, tripId
+                body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, flightJson, now, body.id, tripId
               )
               .run();
           } else {
@@ -173,13 +175,13 @@ export default {
             const id = newId("sch");
             await db
               .prepare(
-                `INSERT INTO schedule_items (id, trip_id, day, order_num, time, name, category, kind, address, lat, lng, memo, reserved, cost, currency, transport_to_next, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                `INSERT INTO schedule_items (id, trip_id, day, order_num, time, name, category, kind, address, lat, lng, memo, reserved, cost, currency, transport_to_next, flight_json, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
               )
               .bind(
                 id, tripId, body.day, (maxRow?.m ?? 0) + 1, body.time ?? null, body.name, body.category, kind,
                 body.address ?? null, body.lat ?? null, body.lng ?? null, body.memo ?? null,
-                body.reserved ? 1 : 0, body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, now, now
+                body.reserved ? 1 : 0, body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, flightJson, now, now
               )
               .run();
           }

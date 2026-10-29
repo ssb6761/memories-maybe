@@ -195,3 +195,15 @@ npm run dev
 - 온라인 여행 생성 시 "Failed to fetch" 류의 오류 → Worker 주소가 정확한지(마지막에
   슬래시`/`가 붙지 않았는지), CORS가 차단되진 않는지 브라우저 개발자도구의 Network 탭을
   확인하세요.
+
+## 항공편 추가 기능 업데이트 (migrate_003)
+
+일정에 "항공편" 항목이 생기면서 `schedule_items` 테이블에 `flight_json` 칸이 추가됐습니다.
+이미 배포해서 쓰고 있는 경우 worker 폴더에서 아래 두 명령을 **순서대로** 한 번씩 실행하세요.
+
+```bash
+npx wrangler d1 execute memories-maybe-db --remote --file=./migrate_003_add_flight.sql
+npx wrangler deploy
+```
+
+마이그레이션 없이 Worker만 배포하면 일정 저장이 실패하니 꼭 마이그레이션을 먼저 실행하세요.

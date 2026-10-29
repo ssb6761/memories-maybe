@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ScheduleItem } from "@/lib/types";
 import { categoryColor } from "@/lib/scheduleUtils";
 import { loadGoogleMapsScript } from "@/lib/googleMapsLoader";
-import { createMapLabel, fitMapToDestination, placeNumbers, SEOUL, type MapLabel } from "@/lib/mapHelpers";
+import { createMapLabel, fitMapToDestination, isPlaceItem, placeNumbers, SEOUL, type MapLabel } from "@/lib/mapHelpers";
 
 interface Props {
   items: ScheduleItem[];
@@ -50,7 +50,7 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
   }, [apiKey]);
 
   const withCoords = items.filter(
-    (i) => i.kind !== "memo" && typeof i.lat === "number" && typeof i.lng === "number"
+    (i) => isPlaceItem(i) && typeof i.lat === "number" && typeof i.lng === "number"
   );
   // 좌표 목록이 바뀔 때만 지도 영역을 다시 맞춘다. 예전엔 핀을 누를 때마다(선택이 바뀔 때마다)
   // 다시 맞추느라 확대해서 보던 화면이 튀었다.
