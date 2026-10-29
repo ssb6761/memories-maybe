@@ -55,7 +55,7 @@ export default function SchedulePage({
 
         {/* 모바일: 일정 위에 컴팩트 지도를 두어 지도와 일정이 자연스럽게 이어지도록 함 */}
         <div className="h-52 border-b border-ink-100 md:hidden">
-          <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} />
+          <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
         </div>
 
         <ScheduleTimeline
@@ -82,7 +82,7 @@ export default function SchedulePage({
 
       {/* 데스크톱: 넓은 화면을 활용한 좌(일정) · 우(지도) 2단 레이아웃 */}
       <div className="hidden md:block md:h-full md:flex-1">
-        <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} />
+        <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
       </div>
     </div>
   );

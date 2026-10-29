@@ -53,7 +53,7 @@ export default function RemoteSchedulePage({
         />
 
         <div className="h-52 border-b border-ink-100 md:hidden">
-          <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} />
+          <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
         </div>
 
         <ScheduleTimeline
@@ -75,7 +75,7 @@ export default function RemoteSchedulePage({
       </div>
 
       <div className="hidden md:block md:h-full md:flex-1">
-        <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} />
+        <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { Category } from "@/lib/types";
+import { CATEGORY_OPTIONS, Category } from "@/lib/types";
+import { categoryColor } from "@/lib/scheduleUtils";
 import { MockPlace, searchMockPlaces } from "@/lib/placesMock";
 import {
   PlaceSearchError,
@@ -10,7 +11,8 @@ import {
   type SearchBounds,
 } from "@/lib/useGooglePlaceSearch";
 import { isGoogleMapsConfigured, loadGoogleMapsScript } from "@/lib/googleMapsLoader";
-import { findDestination } from "@/lib/destinations";
+import { createMapLabel, fitMapToDestination, SEOUL, type MapLabel } from "@/lib/mapHelpers";
+import TimeField from "./TimeField";
 import {
   RecentPlace,
   addRecentSearch,
@@ -23,20 +25,23 @@ import {
   removeRecentlyViewed,
 } from "@/lib/placeHistory";
 
-// 장소 추가 화면 지도에 미리 찍어둘 "이 여행에 이미 저장한 장소"
+// 장소 추가 화면 지도에 미리 찍어둘 "지금 보고 있는 DAY에 이미 넣은 장소"
 export interface SavedPlacePin {
+  id: string;
   name: string;
   lat: number;
   lng: number;
-  day: number;
+  number: number; // 일정 목록과 같은 순서 번호
+  category: Category;
 }
 
 interface Props {
   open: boolean;
   day: number;
-  // 이 여행에 이미 저장된 장소들(좌표 있는 것만). 있으면 지도를 이 장소들이 다 보이게 맞춘다.
+  // 이 DAY에 이미 넣은 장소들(좌표 있는 것만). 있으면 지도를 이 장소들이 다 보이게 맞춘다.
+  // 다른 DAY의 장소는 넣지 않는다 — 비어 있는 DAY에 다른 날 핀이 떠서 헷갈렸다.
   savedPlaces?: SavedPlacePin[];
-  // 여행지(예: "오사카"). 저장된 장소가 하나도 없으면 이 도시/나라 지도를 먼저 보여준다.
+  // 여행지(예: "오사카"). 이 DAY에 장소가 하나도 없으면 이 도시/나라 지도를 먼저 보여준다.
   destination?: string;
   onClose: () => void;
   onAdd: (data: {
@@ -56,16 +61,6 @@ interface Draft {
   lng: string;
 }
 
-// 확인 단계에서 고르는 카테고리는 트리플의 "나만의 장소 추가" 화면처럼 4개(관광지/맛집/숙소/
-// 선택 안 함)로 단순화해서 보여주되, 앱 내부적으로는 기존 Category 타입에 맞춰 저장한다.
-// "선택 안 함"은 우리 데이터 모델엔 "카테고리 없음"이 없어서 중립적인 "기타"로 저장한다.
-const CATEGORY_RADIO: { label: string; value: Category }[] = [
-  { label: "관광지", value: "관광" },
-  { label: "맛집", value: "식사" },
-  { label: "숙소", value: "숙소" },
-  { label: "선택 안 함", value: "기타" },
-];
-
 const EMPTY_DRAFT: Draft = { name: "", address: "", lat: "", lng: "" };
 
 type Step = "browse" | "search" | "customSearch" | "mapPick" | "confirm";
@@ -76,11 +71,6 @@ type Step = "browse" | "search" | "customSearch" | "mapPick" | "confirm";
 // 원하는 장소가 없으면 "나만의 장소 추가"로 들어가 다시 검색하거나(customSearch) 지도에서
 // 직접 위치를 찍어(mapPick) 등록할 수 있고, 그 뒤 카테고리/시간을 골라(confirm) 바로
 // 일정에 추가한다.
-const SEOUL = { lat: 37.5665, lng: 126.978 };
-
-// 여행지 이름 → 지도 영역. 한 번 찾은 결과는 기억해서 장소 추가를 다시 열 때 바로 쓴다.
-const destinationViewportCache = new Map<string, any>();
-
 export default function AddPlaceScreen({ open, day, savedPlaces = [], destination, onClose, onAdd }: Props) {
   const { mode, search, getDetail } = useGooglePlaceSearch();
   const [stepStack, setStepStack] = useState<Step[]>(["browse"]);
@@ -263,12 +253,13 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
   }
 
   // "browse" 단계: 검색창에 포커스하기 전, 지도만 떠 있는 초기 화면.
-  // 지도 시작 위치 우선순위: ① 이 여행에 저장한 장소들이 다 보이게 → ② 여행지(도시/나라)
-  // → ③ 둘 다 없으면 서울. 저장한 장소에는 핀을 찍어서 어디쯤인지 바로 보이게 한다.
-  const savedKey = savedPlaces.map((p) => `${p.lat},${p.lng}`).join("|");
+  // 지도 시작 위치 우선순위: ① 이 DAY에 넣은 장소들이 다 보이게 → ② 여행지(도시/나라)
+  // → ③ 둘 다 없으면 서울. 이 DAY 장소에는 일정과 같은 번호 핀을 찍고, 핀을 누르면 이름이 뜬다.
+  const savedKey = savedPlaces.map((p) => `${p.id}:${p.lat},${p.lng}:${p.number}`).join("|");
   useEffect(() => {
     if (!open || step !== "browse" || !isGoogleMapsConfigured()) return;
     let cancelled = false;
+    let label: MapLabel | null = null;
     loadGoogleMapsScript().then(() => {
       if (cancelled || !browseMapRef.current) return;
       const gmaps = window.google.maps;
@@ -278,6 +269,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: "greedy",
+        clickableIcons: false,
       });
 
       map.addListener("idle", () => {
@@ -289,16 +281,33 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
           bounds: b ? b.toJSON() : undefined,
         };
       });
+      // 빈 곳을 누르면 떠 있던 이름표를 닫는다.
+      map.addListener("click", () => {
+        label?.setMap(null);
+        label = null;
+      });
 
       // 검색 갔다가 돌아온 경우엔 보던 위치를 그대로 유지한다.
       const keepView = !!lastViewRef.current;
 
       savedPlaces.forEach((p) => {
-        new gmaps.Marker({
+        const marker = new gmaps.Marker({
           position: { lat: p.lat, lng: p.lng },
           map,
-          title: `DAY ${p.day} · ${p.name}`,
-          label: { text: String(p.day), color: "white", fontSize: "11px", fontWeight: "700" },
+          title: p.name,
+          label: { text: String(p.number), color: "#ffffff", fontSize: "12px", fontWeight: "700" },
+          icon: {
+            path: gmaps.SymbolPath.CIRCLE,
+            fillColor: categoryColor(p.category),
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+            scale: 11,
+          },
+        });
+        marker.addListener("click", () => {
+          label?.setMap(null);
+          label = createMapLabel(map, { lat: p.lat, lng: p.lng }, p.name, 17);
         });
       });
 
@@ -306,37 +315,18 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
 
       if (savedPlaces.length === 1) {
         map.setCenter({ lat: savedPlaces[0].lat, lng: savedPlaces[0].lng });
-        map.setZoom(14);
-        return;
-      }
-      if (savedPlaces.length > 1) {
+        map.setZoom(15);
+      } else if (savedPlaces.length > 1) {
         const bounds = new gmaps.LatLngBounds();
         savedPlaces.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
         map.fitBounds(bounds, 48);
-        return;
-      }
-      if (destination) {
-        const cached = destinationViewportCache.get(destination);
-        if (cached) {
-          map.fitBounds(cached);
-          return;
-        }
-        const known = findDestination(destination);
-        const address = known ? `${known.en.split(" ")[0]}, ${known.country}` : destination;
-        new gmaps.Geocoder().geocode({ address }, (results: any[] | null, status: string) => {
-          if (cancelled || status !== "OK" || !results?.[0]) return; // 실패하면 서울 그대로
-          const viewport = results[0].geometry.viewport ?? results[0].geometry.bounds;
-          if (viewport) {
-            destinationViewportCache.set(destination, viewport);
-            map.fitBounds(viewport);
-          } else {
-            map.setCenter(results[0].geometry.location);
-          }
-        });
+      } else {
+        fitMapToDestination(map, destination, () => cancelled);
       }
     });
     return () => {
       cancelled = true;
+      label?.setMap(null);
     };
     // open을 꼭 같이 봐야 한다. 처음 마운트될 땐 open=false라 지도 div가 없어서 그리지 못하고,
     // 장소 추가를 눌러 open=true가 돼도 step은 처음부터 "browse"라 그대로였기 때문에 이 effect가
@@ -777,35 +767,23 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
 
             <div>
               <label className="mb-1 block text-xs font-medium text-ink-500">시간</label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                // 아이폰 사파리는 time 입력칸에 자체 최소 너비가 있어서 w-full이어도 화면 밖으로
-                // 삐져나간다. 기본 모양을 끄고(appearance-none) 최소 너비를 0으로 풀어준다.
-                className="time-input block h-[42px] w-full min-w-0 max-w-full appearance-none rounded-xl border border-ink-300 bg-white px-3 text-left text-sm outline-none focus:border-brand-500"
-              />
+              <TimeField value={time} onChange={setTime} />
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-medium text-ink-500">카테고리</label>
-              <div className="divide-y divide-ink-100 rounded-xl border border-ink-200">
-                {CATEGORY_RADIO.map((opt) => (
-                  <label
-                    key={opt.label}
-                    className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-sm"
-                  >
-                    <span className="font-medium text-ink-800">{opt.label}</span>
-                    <input
-                      type="radio"
-                      name="category"
-                      checked={category === opt.value}
-                      onChange={() => setCategory(opt.value)}
-                      className="h-4 w-4 accent-brand-600"
-                    />
-                  </label>
+              <label className="mb-1 block text-xs font-medium text-ink-500">카테고리</label>
+              {/* 일정 수정 화면과 같은 드롭다운 */}
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as Category)}
+                className="h-[42px] w-full rounded-xl border border-ink-300 bg-white px-3 text-sm outline-none focus:border-brand-500"
+              >
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
 
           </div>

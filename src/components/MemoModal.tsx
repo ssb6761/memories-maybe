@@ -46,6 +46,7 @@ export default function MemoModal({ open, day, initial, onClose, onSave, onDelet
 
   async function handleDelete() {
     if (!onDelete) return;
+    if (!window.confirm("이 메모를 삭제하시겠습니까?")) return;
     setDeleting(true);
     setSaveError("");
     try {

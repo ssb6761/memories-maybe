@@ -32,9 +32,3 @@ body {
   background-size: 2px 100%;
   background-position: center;
 }
-
-/* 아이폰 사파리: time/date 입력칸이 내용 기준 최소 너비를 가져서 화면 밖으로 넘치는 문제 방지 */
-input.time-input::-webkit-date-and-time-value {
-  text-align: left;
-  min-width: 0;
-}

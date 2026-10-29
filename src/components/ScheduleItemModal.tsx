@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { CATEGORY_OPTIONS, Category, ScheduleItem, TRANSPORT_LABEL, TransportMode } from "@/lib/types";
+import { CATEGORY_OPTIONS, Category, ScheduleItem } from "@/lib/types";
 import PlaceSearchInput from "./PlaceSearchInput";
+import TimeField from "./TimeField";
 
 interface Props {
   open: boolean;
@@ -13,9 +14,13 @@ interface Props {
     data: Partial<ScheduleItem> & { day: number; name: string; category: Category }
   ) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
+  // 하단 "비용 추가" 버튼. 이 장소에 연결된 지출 입력 화면을 연다.
+  onAddExpense?: () => void;
 }
 
-export default function ScheduleItemModal({ open, day, initial, onClose, onSave, onDelete }: Props) {
+// 일정 수정 화면. 참고 비용 · 다음 장소로 이동수단 · 예약 완료 칸은 없앴다.
+// (예전에 입력해둔 값은 지워지지 않도록 저장할 때 그대로 다시 보낸다.)
+export default function ScheduleItemModal({ open, day, initial, onClose, onSave, onDelete, onAddExpense }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<Category>("관광");
   const [time, setTime] = useState("");
@@ -23,10 +28,6 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
   const [lat, setLat] = useState<string>("");
   const [lng, setLng] = useState<string>("");
   const [memo, setMemo] = useState("");
-  const [reserved, setReserved] = useState(false);
-  const [cost, setCost] = useState<string>("");
-  const [currency, setCurrency] = useState("KRW");
-  const [transport, setTransport] = useState<TransportMode>("car");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -40,10 +41,6 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
     setLat(initial?.lat !== undefined ? String(initial.lat) : "");
     setLng(initial?.lng !== undefined ? String(initial.lng) : "");
     setMemo(initial?.memo ?? "");
-    setReserved(initial?.reserved ?? false);
-    setCost(initial?.cost !== undefined ? String(initial.cost) : "");
-    setCurrency(initial?.currency ?? "KRW");
-    setTransport(initial?.transportToNext ?? "car");
     setSaveError("");
   }, [open, initial]);
 
@@ -67,10 +64,11 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
         lat: lat ? parseFloat(lat) : undefined,
         lng: lng ? parseFloat(lng) : undefined,
         memo: memo || undefined,
-        reserved,
-        cost: cost ? parseFloat(cost) : undefined,
-        currency: cost ? currency : undefined,
-        transportToNext: transport,
+        // 화면에서 뺀 항목들: 예전 값을 그대로 유지
+        reserved: initial?.reserved,
+        cost: initial?.cost,
+        currency: initial?.currency,
+        transportToNext: initial?.transportToNext,
       });
       onClose();
     } catch (err: any) {
@@ -82,6 +80,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
 
   async function handleDelete() {
     if (!onDelete) return;
+    if (!window.confirm(`'${initial?.name ?? "이 일정"}'을(를) 삭제하시겠습니까?`)) return;
     setDeleting(true);
     setSaveError("");
     try {
@@ -93,6 +92,9 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
       setDeleting(false);
     }
   }
+
+  const inputClass =
+    "h-[42px] w-full rounded-xl border border-ink-300 bg-white px-3 text-sm outline-none focus:border-brand-500";
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center">
@@ -124,30 +126,22 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">장소명 *</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-            />
+            <input value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
           </div>
 
-          <div className="flex gap-2">
-            <div className="flex-1">
+          {/* 시간과 카테고리를 같은 높이·같은 너비로 나란히. min-w-0이 없으면 시간 칸이
+              옆 칸을 밀어내거나 겹친다. */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0">
               <label className="mb-1 block text-xs font-medium text-ink-500">시간</label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-              />
+              <TimeField value={time} onChange={setTime} />
             </div>
-            <div className="flex-1">
+            <div className="min-w-0">
               <label className="mb-1 block text-xs font-medium text-ink-500">카테고리</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
-                className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
+                className={inputClass}
               >
                 {CATEGORY_OPTIONS.map((c) => (
                   <option key={c} value={c}>
@@ -160,11 +154,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">주소</label>
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-            />
+            <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
           </div>
 
           {!lat && !lng && (
@@ -173,50 +163,6 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
               표시되지 않지만 일정에는 정상적으로 저장돼요.
             </p>
           )}
-
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-ink-500">참고 비용</label>
-              <input
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-                inputMode="numeric"
-                placeholder="예: 100000"
-                className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-              />
-            </div>
-            <div className="w-24">
-              <label className="mb-1 block text-xs font-medium text-ink-500">통화</label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-              >
-                {["KRW", "IDR", "USD", "JPY", "EUR"].map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-ink-500">
-              다음 장소로 이동수단
-            </label>
-            <select
-              value={transport}
-              onChange={(e) => setTransport(e.target.value as TransportMode)}
-              className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-            >
-              {Object.entries(TRANSPORT_LABEL).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">메모</label>
@@ -227,16 +173,6 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
               className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
             />
           </div>
-
-          <label className="flex items-center gap-2 text-sm text-ink-700">
-            <input
-              type="checkbox"
-              checked={reserved}
-              onChange={(e) => setReserved(e.target.checked)}
-              className="h-4 w-4 rounded border-ink-300 text-brand-600"
-            />
-            예약 완료
-          </label>
         </div>
 
         {saveError && (
@@ -251,15 +187,25 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
               type="button"
               onClick={handleDelete}
               disabled={deleting || saving}
-              className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50 disabled:opacity-60"
+              className="shrink-0 rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 disabled:opacity-60"
             >
               {deleting ? "삭제 중..." : "삭제"}
+            </button>
+          )}
+          {initial && onAddExpense && (
+            <button
+              type="button"
+              onClick={onAddExpense}
+              disabled={deleting || saving}
+              className="shrink-0 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-600 disabled:opacity-60"
+            >
+              💰 비용 추가
             </button>
           )}
           <button
             type="submit"
             disabled={saving || deleting}
-            className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
+            className="flex-1 rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
           >
             {saving ? "저장 중..." : initial ? "수정 완료" : "일정 추가"}
           </button>

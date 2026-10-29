@@ -300,10 +300,18 @@ export default function TripsPage() {
         selected={onlineDestination}
         onClose={() => setDestinationPickerOpen(false)}
         onSelect={(city) => {
+          const prevCity = onlineDestination;
           setOnlineDestination(city);
           setOnlineError("");
           // 여행 이름을 아직 안 정했으면 "오사카 여행"처럼 자동으로 채워준다(수정 가능).
-          if (!onlineName.trim()) setOnlineName(`${city} 여행`);
+          // 여행지를 바꾸면 이름 속의 예전 여행지도 새 여행지로 바꾼다
+          // (예: "오사카 여행" → "도쿄 여행", "오사카 먹방" → "도쿄 먹방").
+          const name = onlineName.trim();
+          if (!name) {
+            setOnlineName(`${city} 여행`);
+          } else if (prevCity && prevCity !== city && name.includes(prevCity)) {
+            setOnlineName(name.split(prevCity).join(city));
+          }
         }}
       />
       <DateRangePicker
