@@ -37,9 +37,10 @@ export default function ScheduleItemCard({
   const expenseTotal = linkedExpenses.reduce((sum, e) => sum + e.amountKRW, 0);
 
   return (
-    <div className="relative flex gap-3 pl-1">
-      {/* 왼쪽 세로 타임라인: 번호 원(장소) 또는 메모 아이콘 */}
-      <div className="flex w-8 flex-col items-center pt-1">
+    <div className="relative flex items-center gap-3 pl-1">
+      {/* 왼쪽 세로 타임라인: 번호 원(장소) 또는 메모 아이콘. 카드 높이의 가운데에 오도록
+          items-center로 세로 중앙 정렬한다(예전엔 위에 붙어 있었다). */}
+      <div className="flex w-8 shrink-0 flex-col items-center">
         {isMemo ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-100 text-sm">
             📝
@@ -64,7 +65,7 @@ export default function ScheduleItemCard({
         onKeyDown={(e) => {
           if (!reorderMode && (e.key === "Enter" || e.key === " ")) onClick();
         }}
-        className={`mb-1 min-w-0 flex-1 rounded-2xl border bg-white p-3.5 text-left shadow-card transition
+        className={`min-w-0 flex-1 rounded-2xl border bg-white px-3.5 py-3 text-left shadow-card transition
                     ${reorderMode ? "cursor-default" : "cursor-pointer active:scale-[0.99]"}
                     ${selected ? "border-brand-500 ring-2 ring-brand-100" : "border-ink-100"}`}
       >

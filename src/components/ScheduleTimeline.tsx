@@ -181,17 +181,17 @@ export default function ScheduleTimeline({
               {leg && (
                 <div className="flex pl-1">
                   <div className="flex w-8 shrink-0 flex-col items-center">
-                    <div className="h-2 w-px bg-ink-200" />
+                    <div className="h-1 w-px bg-ink-200" />
                     {leg.km !== null && (
-                      <span className="whitespace-nowrap py-0.5 text-[10px] font-medium leading-none text-ink-400">
+                      <span className="whitespace-nowrap text-[10px] font-medium leading-tight text-ink-400">
                         {formatDistance(leg.km)}
                       </span>
                     )}
-                    <div className="h-2 w-px bg-ink-200" />
+                    <div className="h-1 w-px bg-ink-200" />
                   </div>
                 </div>
               )}
-              {reorderMode && <div className="h-2" />}
+              {(reorderMode || !leg) && <div className="h-2" />}
             </div>
           );
         })}
@@ -279,8 +279,8 @@ export default function ScheduleTimeline({
         day={day}
         initial={editingMemo}
         onClose={() => setMemoModalOpen(false)}
-        onSave={({ id, day: memoDay, text }) =>
-          onSave({ id, day: memoDay, name: "메모", category: "기타", kind: "memo", memo: text })
+        onSave={({ id, day: memoDay, text, time }) =>
+          onSave({ id, day: memoDay, name: "메모", category: "기타", kind: "memo", memo: text, time })
         }
         onDelete={editingMemo ? () => onDelete(editingMemo.id) : undefined}
       />

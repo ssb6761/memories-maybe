@@ -24,6 +24,7 @@ import {
   removeRecentSearch,
   removeRecentlyViewed,
 } from "@/lib/placeHistory";
+import ClearableInput from "./ClearableInput";
 
 // 장소 추가 화면 지도에 미리 찍어둘 "지금 보고 있는 DAY에 이미 넣은 장소"
 export interface SavedPlacePin {
@@ -475,7 +476,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
             </div>
           )}
           <div className="absolute inset-x-0 top-0 p-3">
-            <input
+            <ClearableInput
               value={query}
               onFocus={handleSearchFocus}
               onChange={(e) => handleQueryChange(e.target.value)}
@@ -489,7 +490,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       {(step === "search" || step === "customSearch") && (
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="space-y-2 border-b border-ink-100 px-4 py-3">
-            <input
+            <ClearableInput
               autoFocus
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
@@ -725,7 +726,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
           <div className="space-y-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-ink-500">장소명 *</label>
-              <input
+              <ClearableInput
                 value={draft.name}
                 onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
                 placeholder="장소 이름을 입력하세요"
@@ -752,7 +753,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
                 </div>
               ) : (
                 <div>
-                  <input
+                  <ClearableInput
                     value={draft.address}
                     onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))}
                     className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"

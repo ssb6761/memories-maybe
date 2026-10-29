@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { CATEGORY_OPTIONS, Category, ScheduleItem } from "@/lib/types";
 import PlaceSearchInput from "./PlaceSearchInput";
 import TimeField from "./TimeField";
+import ClearableInput from "./ClearableInput";
 
 interface Props {
   open: boolean;
@@ -126,7 +127,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">장소명 *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
+            <ClearableInput value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
           </div>
 
           {/* 시간과 카테고리를 같은 높이·같은 너비로 나란히. min-w-0이 없으면 시간 칸이
@@ -154,7 +155,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">주소</label>
-            <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
+            <ClearableInput value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
           </div>
 
           {!lat && !lng && (

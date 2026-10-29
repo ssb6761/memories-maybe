@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Expense, ScheduleItem, Traveler } from "@/lib/types";
 import { currencySymbol } from "@/lib/currency";
+import ClearableInput from "./ClearableInput";
 
 interface Props {
   open: boolean;
@@ -151,7 +152,7 @@ export default function ExpenseModal({
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">항목명 *</label>
-            <input
+            <ClearableInput
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -163,7 +164,7 @@ export default function ExpenseModal({
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="mb-1 block text-xs font-medium text-ink-500">금액 *</label>
-              <input
+              <ClearableInput
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 inputMode="decimal"
@@ -193,7 +194,7 @@ export default function ExpenseModal({
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">통화 당 원화</label>
-            <input
+            <ClearableInput
               value={rate}
               onChange={(e) => setRate(e.target.value)}
               inputMode="decimal"
@@ -219,7 +220,7 @@ export default function ExpenseModal({
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">장소</label>
-            <input
+            <ClearableInput
               value={place}
               onChange={(e) => setPlace(e.target.value)}
               placeholder="예: BELLA ITALIA"

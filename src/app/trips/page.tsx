@@ -14,6 +14,7 @@ import {
 import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
 import { findDestination } from "@/lib/destinations";
+import ClearableInput from "@/components/ClearableInput";
 
 function formatRange(start: string, end: string) {
   const s = new Date(start);
@@ -257,7 +258,7 @@ export default function TripsPage() {
                   )}
                   <span className="text-ink-300" aria-hidden>›</span>
                 </button>
-                <input
+                <ClearableInput
                   value={onlineName}
                   onChange={(e) => setOnlineName(e.target.value)}
                   placeholder="여행 이름"
@@ -276,7 +277,7 @@ export default function TripsPage() {
             )}
 
             <form onSubmit={handleJoin} className={`flex gap-2 ${showOnlineForm ? "mt-3" : ""}`}>
-              <input
+              <ClearableInput
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 placeholder="공유 코드로 참여하기 (예: BALI2024)"

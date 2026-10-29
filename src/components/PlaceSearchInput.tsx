@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { MockPlace, searchMockPlaces } from "@/lib/placesMock";
 import { useGooglePlaceSearch, type GooglePrediction } from "@/lib/useGooglePlaceSearch";
+import ClearableInput from "./ClearableInput";
 
 export interface PlaceResult {
   name: string;
@@ -81,7 +82,7 @@ export default function PlaceSearchInput({ onSelect }: Props) {
 
   return (
     <div className="relative">
-      <input
+      <ClearableInput
         value={query}
         onChange={(e) => handleQueryChange(e.target.value)}
         onFocus={() => setOpen(true)}

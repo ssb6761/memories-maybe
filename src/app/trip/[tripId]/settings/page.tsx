@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTrip } from "@/lib/store";
+import ClearableInput from "@/components/ClearableInput";
 
 export default function SettingsPage({ params }: { params: { tripId: string } }) {
   const { trip, loaded, updateTrip, addTraveler, removeTraveler } = useTrip(params.tripId);
@@ -52,7 +53,7 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
         <form onSubmit={handleSaveInfo} className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">여행 이름</label>
-            <input
+            <ClearableInput
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
@@ -60,7 +61,7 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">여행지</label>
-            <input
+            <ClearableInput
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
@@ -126,7 +127,7 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
           ))}
         </div>
         <div className="mt-3 flex gap-2">
-          <input
+          <ClearableInput
             value={newTraveler}
             onChange={(e) => setNewTraveler(e.target.value)}
             placeholder="동행자 이름"

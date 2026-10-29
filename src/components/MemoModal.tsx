@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { ScheduleItem } from "@/lib/types";
+import TimeField from "./TimeField";
 
 interface Props {
   open: boolean;
   day: number;
   initial?: ScheduleItem;
   onClose: () => void;
-  onSave: (data: { id?: string; day: number; text: string }) => void | Promise<void>;
+  onSave: (data: { id?: string; day: number; text: string; time?: string }) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
 }
 
@@ -16,6 +17,7 @@ interface Props {
 // 간단한 메모 항목. 실제 저장은 ScheduleItem에 kind:"memo"로 저장된다 (ScheduleTimeline 참고).
 export default function MemoModal({ open, day, initial, onClose, onSave, onDelete }: Props) {
   const [text, setText] = useState("");
+  const [time, setTime] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -23,6 +25,7 @@ export default function MemoModal({ open, day, initial, onClose, onSave, onDelet
   useEffect(() => {
     if (!open) return;
     setText(initial?.memo ?? "");
+    setTime(initial?.time ?? "");
     setSaveError("");
   }, [open, initial]);
 
@@ -35,7 +38,7 @@ export default function MemoModal({ open, day, initial, onClose, onSave, onDelet
     try {
       // 저장이 실패(특히 온라인 공유 여행에서 네트워크 오류)해도 조용히 닫히지 않도록
       // 끝까지 기다렸다가 성공했을 때만 onClose를 호출한다.
-      await onSave({ id: initial?.id, day, text: text.trim() });
+      await onSave({ id: initial?.id, day, text: text.trim(), time: time || undefined });
       onClose();
     } catch (err: any) {
       setSaveError(err?.message ?? "저장에 실패했어요. 네트워크 상태를 확인하고 다시 시도해주세요.");
@@ -69,6 +72,11 @@ export default function MemoModal({ open, day, initial, onClose, onSave, onDelet
           <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-600" aria-label="닫기">
             ✕
           </button>
+        </div>
+
+        <div className="mb-3">
+          <label className="mb-1 block text-xs font-medium text-ink-500">시간 (선택)</label>
+          <TimeField value={time} onChange={setTime} />
         </div>
 
         <textarea

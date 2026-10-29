@@ -36,6 +36,9 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
           disableDefaultUI: true,
           zoomControl: true,
           clickableIcons: false,
+          // 기본값("auto")은 휴대폰에서 스크롤되는 페이지 안의 지도를 두 손가락으로만
+          // 움직이게 한다. "greedy"는 한 손가락으로 바로 움직인다.
+          gestureHandling: "greedy",
         });
         setReady(true);
       })
