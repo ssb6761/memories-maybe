@@ -785,28 +785,28 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
                 ))}
               </select>
             </div>
+          </div>
 
+          {/* 추가 버튼을 화면 맨 아래에 붙여두면 아이폰 홈 바 근처라 누르기 불편해서,
+              입력칸 바로 아래로 올렸다. */}
+          <div className="mt-6 pb-10">
+            {saveError && (
+              <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+                ⚠️ {saveError}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={!draft.name.trim() || saving}
+              className="w-full rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-50"
+            >
+              {saving ? "추가하는 중..." : `DAY ${day} 일정에 추가`}
+            </button>
           </div>
         </div>
       )}
 
-      {step === "confirm" && (
-        <div className="border-t border-ink-100 p-3">
-          {saveError && (
-            <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
-              ⚠️ {saveError}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!draft.name.trim() || saving}
-            className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-50"
-          >
-            {saving ? "추가하는 중..." : `DAY ${day} 일정에 추가`}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

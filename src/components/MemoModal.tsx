@@ -60,8 +60,10 @@ export default function MemoModal({ open, day, initial, onClose, onSave, onDelet
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center">
-      <div className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-pop animate-fade-in md:rounded-2xl">
+    // 아래에서 올라오는 시트였을 때는 입력창이 화면 아래에 있어서 키보드에 가려졌다.
+    // 메모는 바로 키보드가 뜨니까 화면 위쪽에 띄운다.
+    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 px-3 pt-14 md:items-center md:pt-0">
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-pop animate-fade-in">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">{initial ? "메모 수정" : `DAY ${day} 메모 추가`}</h2>
           <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-600" aria-label="닫기">

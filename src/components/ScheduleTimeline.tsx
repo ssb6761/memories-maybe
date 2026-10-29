@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Category, Expense, ScheduleItem, Traveler } from "@/lib/types";
 import { buildLegs, sortedDayItems } from "@/lib/scheduleUtils";
 import { formatDistance } from "@/lib/distance";
-import { TRANSPORT_LABEL } from "@/lib/types";
 import { placeNumbers } from "@/lib/mapHelpers";
 import ScheduleItemCard from "./ScheduleItemCard";
 import ScheduleItemModal from "./ScheduleItemModal";
@@ -178,20 +177,17 @@ export default function ScheduleTimeline({
                 onMoveUp={() => move(idx, -1)}
                 onMoveDown={() => move(idx, 1)}
               />
+              {/* 다음 장소까지의 거리만, 번호 원들 사이 세로줄 위에 작게 표시한다. */}
               {leg && (
-                <div className="relative flex items-center gap-3 py-1 pl-1">
-                  <div className="flex w-8 shrink-0 justify-center">
-                    <div className="h-6 w-px bg-ink-200" />
-                  </div>
-                  <div className="flex items-center gap-1 text-[11px] text-ink-400">
-                    <span>
-                      {leg.to.transportToNext ? TRANSPORT_LABEL[leg.to.transportToNext] : TRANSPORT_LABEL.car}
-                    </span>
-                    <span>·</span>
-                    <span className="font-medium text-ink-500">
-                      {leg.km !== null ? formatDistance(leg.km) : "거리 미확인"}
-                    </span>
-                    {leg.durationMin !== null && <span>· 약 {leg.durationMin}분</span>}
+                <div className="flex pl-1">
+                  <div className="flex w-8 shrink-0 flex-col items-center">
+                    <div className="h-2 w-px bg-ink-200" />
+                    {leg.km !== null && (
+                      <span className="whitespace-nowrap py-0.5 text-[10px] font-medium leading-none text-ink-400">
+                        {formatDistance(leg.km)}
+                      </span>
+                    )}
+                    <div className="h-2 w-px bg-ink-200" />
                   </div>
                 </div>
               )}

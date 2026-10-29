@@ -100,7 +100,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center">
       <form
         onSubmit={handleSubmit}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-pop animate-fade-in md:rounded-2xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 pb-12 shadow-pop animate-fade-in md:rounded-2xl md:pb-5"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">
@@ -181,6 +181,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
           </p>
         )}
 
+        {/* 아래쪽 여백(pb-12)을 넉넉히 둬서 버튼이 아이폰 홈 바에 붙지 않게 했다. */}
         <div className="mt-5 flex gap-2">
           {initial && onDelete && (
             <button
