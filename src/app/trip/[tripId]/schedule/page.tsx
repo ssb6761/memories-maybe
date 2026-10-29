@@ -61,6 +61,8 @@ export default function SchedulePage({
         <ScheduleTimeline
           day={selectedDay}
           destination={trip.destination}
+          startDate={trip.startDate}
+          endDate={trip.endDate}
           schedule={schedule}
           expenses={expenses}
           travelers={trip.travelers}

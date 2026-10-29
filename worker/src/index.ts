@@ -24,6 +24,40 @@ function notFound(message = "찾을 수 없어요."): Response {
   return json({ error: message }, 404);
 }
 
+// 새 기능 때문에 테이블에 칸(컬럼)이 추가될 때마다 마이그레이션 명령을 직접 실행하지 않아도
+// 되도록, Worker가 처음 요청을 받을 때 빠진 칸이 있으면 스스로 추가한다.
+// (Worker 인스턴스마다 한 번만 확인하고, 이미 있으면 아무것도 하지 않는다.)
+const REQUIRED_COLUMNS: Record<string, Record<string, string>> = {
+  schedule_items: {
+    kind: "TEXT NOT NULL DEFAULT 'place'",
+    flight_json: "TEXT",
+  },
+  expenses: {
+    payment_method: "TEXT",
+  },
+};
+let schemaReady: Promise<void> | null = null;
+
+function ensureSchema(db: D1Database): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = (async () => {
+      for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
+        const info = await db.prepare(`PRAGMA table_info(${table})`).all<any>();
+        const existing = new Set((info.results ?? []).map((c: any) => c.name));
+        for (const [col, def] of Object.entries(columns)) {
+          if (!existing.has(col)) {
+            await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`).run();
+          }
+        }
+      }
+    })().catch((err) => {
+      schemaReady = null; // 실패하면 다음 요청 때 다시 시도
+      throw err;
+    });
+  }
+  return schemaReady;
+}
+
 async function getTripRowByShareId(db: D1Database, shareId: string) {
   return db.prepare(`SELECT * FROM trips WHERE share_id = ?`).bind(shareId).first();
 }
@@ -61,6 +95,8 @@ export default {
     }
 
     try {
+      await ensureSchema(db);
+
       // POST /api/trips  — 새 온라인 여행 생성
       if (parts.length === 2 && method === "POST") {
         const body = await request.json<any>();
@@ -225,14 +261,15 @@ export default {
             await db
               .prepare(
                 `UPDATE expenses SET day=?, title=?, category=?, amount=?, currency=?, rate_to_krw=?, amount_krw=?,
-                 place=?, schedule_item_id=?, private_only=?, paid_by=?, paid_by_count=?, split_with=?, split_count=?, updated_at=?
+                 place=?, schedule_item_id=?, private_only=?, paid_by=?, paid_by_count=?, split_with=?, split_count=?,
+                 payment_method=?, updated_at=?
                  WHERE id=? AND trip_id=?`
               )
               .bind(
                 body.day ?? null, body.title, body.category, body.amount, body.currency, body.rateToKRW ?? 1,
                 body.amountKRW ?? Math.round(body.amount * (body.rateToKRW ?? 1)), body.place ?? null,
                 body.scheduleItemId ?? null, body.privateOnly ? 1 : 0, paidBy, body.paidByCount ?? 1,
-                splitWith, body.splitCount ?? 1, now, body.id, tripId
+                splitWith, body.splitCount ?? 1, body.paymentMethod ?? null, now, body.id, tripId
               )
               .run();
           } else {
@@ -240,14 +277,16 @@ export default {
             await db
               .prepare(
                 `INSERT INTO expenses (id, trip_id, day, title, category, amount, currency, rate_to_krw, amount_krw, place,
-                 schedule_item_id, private_only, paid_by, paid_by_count, split_with, split_count, source, import_key, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 schedule_item_id, private_only, paid_by, paid_by_count, split_with, split_count, source, import_key,
+                 payment_method, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
               )
               .bind(
                 id, tripId, body.day ?? null, body.title, body.category, body.amount, body.currency,
                 body.rateToKRW ?? 1, body.amountKRW ?? Math.round(body.amount * (body.rateToKRW ?? 1)),
                 body.place ?? null, body.scheduleItemId ?? null, body.privateOnly ? 1 : 0, paidBy,
-                body.paidByCount ?? 1, splitWith, body.splitCount ?? 1, body.source ?? "manual", body.importKey ?? null, now, now
+                body.paidByCount ?? 1, splitWith, body.splitCount ?? 1, body.source ?? "manual", body.importKey ?? null,
+                body.paymentMethod ?? null, now, now
               )
               .run();
           }

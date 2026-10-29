@@ -113,6 +113,7 @@ export interface Expense {
   splitCount: number; // 나눠 낼 사람 수
   source: "manual" | "csv"; // 수동 입력인지 CSV 가져오기인지
   importKey?: string; // CSV 중복 확인용 해시
+  paymentMethod?: string; // 결제수단: "현금" | "카드"
   createdAt: string;
   updatedAt: string;
 }

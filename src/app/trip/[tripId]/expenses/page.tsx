@@ -154,6 +154,9 @@ export default function ExpensesPage({ params }: { params: { tripId: string } })
         initial={editing}
         travelers={trip.travelers}
         scheduleItems={schedule}
+        startDate={trip.startDate}
+        endDate={trip.endDate}
+        destination={trip.destination}
         onClose={() => setModalOpen(false)}
         onSave={(data) => {
           upsertExpense(data);

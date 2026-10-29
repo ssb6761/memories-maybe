@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTrip } from "@/lib/store";
 import ClearableInput from "@/components/ClearableInput";
+import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
+import { findDestination } from "@/lib/destinations";
 
 export default function SettingsPage({ params }: { params: { tripId: string } }) {
   const { trip, loaded, updateTrip, addTraveler, removeTraveler } = useTrip(params.tripId);
@@ -14,6 +16,7 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [newTraveler, setNewTraveler] = useState("");
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -59,33 +62,43 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
               className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
             />
           </div>
+          {/* 여행지는 만들 때 정한 값으로 고정(수정 불가). 지도 위치·통화 기본값이 여행지를 기준으로 정해진다. */}
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">여행지</label>
-            <ClearableInput
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-            />
+            <div className="flex h-[42px] items-center rounded-xl bg-ink-100/60 px-3 text-sm text-ink-700">
+              {destination ? (
+                <>
+                  {findDestination(destination)?.flag ?? "📍"} {destination}
+                  {findDestination(destination) && (
+                    <span className="ml-1 text-xs text-ink-400">{findDestination(destination)!.country}</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-ink-400">여행지 없음</span>
+              )}
+            </div>
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-ink-500">시작일</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-ink-500">종료일</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-              />
-            </div>
+          {/* 여행 기간: 날짜 칸 두 개가 아이폰에서 화면 밖으로 넘쳐서, 여행 만들기와 같은
+              한 캘린더 방식으로 바꿨다. */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-ink-500">여행 기간</label>
+            <button
+              type="button"
+              onClick={() => setDatePickerOpen(true)}
+              className="flex h-[42px] w-full items-center justify-between rounded-xl border border-ink-300 bg-white px-3 text-left text-sm"
+            >
+              {startDate && endDate ? (
+                <span className="font-medium text-ink-900">
+                  📅 {formatShortDate(startDate)} - {formatShortDate(endDate)}
+                  <span className="ml-1.5 text-xs font-normal text-brand-600">{formatNights(startDate, endDate)}</span>
+                </span>
+              ) : (
+                <span className="text-ink-400">여행 기간 선택</span>
+              )}
+              <span className="text-ink-300" aria-hidden>
+                ›
+              </span>
+            </button>
           </div>
           <button
             type="submit"
@@ -173,6 +186,17 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
           있어 확장이 쉬워요.
         </p>
       </section>
+
+      <DateRangePicker
+        open={datePickerOpen}
+        start={startDate}
+        end={endDate}
+        onClose={() => setDatePickerOpen(false)}
+        onConfirm={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }}
+      />
 
       <button
         onClick={() => router.push("/trips")}

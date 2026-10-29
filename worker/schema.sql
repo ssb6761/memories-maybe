@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   split_count INTEGER NOT NULL DEFAULT 1,
   source TEXT NOT NULL DEFAULT 'manual',
   import_key TEXT,
+  payment_method TEXT, -- '현금' | '카드' 등
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

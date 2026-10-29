@@ -154,6 +154,9 @@ export default function RemoteExpensesPage({ params }: { params: { shareId: stri
         initial={editing}
         travelers={trip.travelers}
         scheduleItems={schedule}
+        startDate={trip.startDate}
+        endDate={trip.endDate}
+        destination={trip.destination}
         onClose={() => setModalOpen(false)}
         onSave={(data) => upsertExpense(data)}
         onDelete={editing ? () => deleteExpense(editing.id) : undefined}

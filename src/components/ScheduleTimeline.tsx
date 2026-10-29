@@ -15,6 +15,8 @@ import ExpenseModal from "./ExpenseModal";
 interface Props {
   day: number;
   destination?: string;
+  startDate?: string;
+  endDate?: string;
   schedule: ScheduleItem[];
   expenses: Expense[];
   travelers: Traveler[];
@@ -33,6 +35,8 @@ interface Props {
 export default function ScheduleTimeline({
   day,
   destination,
+  startDate,
+  endDate,
   schedule,
   expenses,
   travelers,
@@ -349,6 +353,9 @@ export default function ScheduleTimeline({
         open={expenseModalOpen}
         travelers={travelers}
         scheduleItems={schedule}
+        startDate={startDate}
+        endDate={endDate}
+        destination={destination}
         prefill={
           expenseTarget
             ? {

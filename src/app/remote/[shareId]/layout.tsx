@@ -40,7 +40,7 @@ export default function RemoteTripLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa] pb-16 md:pb-0">
+    <div className="min-h-screen bg-[#f7f8fa] pb-24 md:pb-0">
       <header className="sticky top-0 z-20 border-b border-ink-100 bg-white/95 px-4 py-3 backdrop-blur md:px-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">

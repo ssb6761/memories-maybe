@@ -449,6 +449,7 @@ export function useTrip(tripId: string) {
         splitCount: expense.splitCount ?? Math.max(1, expense.splitWith?.length ?? 1),
         source: expense.source ?? "manual",
         importKey: expense.importKey,
+        paymentMethod: expense.paymentMethod,
         createdAt: expense.createdAt ?? nowIso(),
         updatedAt: nowIso(),
       };

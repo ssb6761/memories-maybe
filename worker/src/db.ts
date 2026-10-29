@@ -95,6 +95,7 @@ export function rowToExpense(row: any) {
     splitCount: row.split_count,
     source: row.source,
     importKey: row.import_key ?? undefined,
+    paymentMethod: row.payment_method ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

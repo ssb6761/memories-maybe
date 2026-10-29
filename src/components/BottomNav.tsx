@@ -15,8 +15,9 @@ export default function BottomNav({ tripId, basePath }: { tripId?: string; baseP
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-white/95 backdrop-blur
-                 md:static md:border-t-0 md:border-b md:bg-white"
+      // 아이폰 홈 바에 붙지 않도록 아래 여백(pb-5)을 둬서 탭을 위로 올렸다.
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-white/95 pb-5 backdrop-blur
+                 md:static md:border-t-0 md:border-b md:bg-white md:pb-0"
     >
       <div className="mx-auto flex max-w-md md:max-w-none md:justify-start md:gap-1 md:px-6">
         {TABS.map((tab) => {
