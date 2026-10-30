@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent, type MouseEvent } from "r
 import { useRouter } from "next/navigation";
 import { useTripList } from "@/lib/store";
 import { api, isRemoteEnabled, type MyTrip } from "@/lib/api";
-import { logout, useAuthUser } from "@/lib/auth";
+import Link from "next/link";
 import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
 import { findDestination } from "@/lib/destinations";
@@ -36,7 +36,12 @@ interface TripCard {
 export default function TripsPage() {
   const router = useRouter();
   const { trips, loaded } = useTripList();
-  const { user } = useAuthUser();
+  const [todayLabel, setTodayLabel] = useState("");
+  useEffect(() => {
+    const d = new Date();
+    const w = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+    setTodayLabel(`${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${w}요일`);
+  }, []);
 
   const [showOnlineForm, setShowOnlineForm] = useState(false);
   const [onlineName, setOnlineName] = useState("");
@@ -159,18 +164,26 @@ export default function TripsPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-white px-5 pb-10 pt-8 sm:max-w-xl">
+      {/* 맨 위: 오늘 날짜 + 설정 버튼 */}
+      <div className="mb-1 flex items-center justify-between">
+        <p className="text-sm font-medium text-ink-500">{todayLabel}</p>
+        <Link
+          href="/settings"
+          className="-mr-1 rounded-full p-1.5 text-ink-500 hover:bg-ink-100"
+          aria-label="설정"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            />
+          </svg>
+        </Link>
+      </div>
       <div className="flex items-center justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-ink-900">내 여행</h1>
-          {user && (
-            <p className="mt-0.5 truncate text-xs text-ink-500">
-              {user.name}님 ·{" "}
-              <button type="button" onClick={() => logout()} className="underline">
-                로그아웃
-              </button>
-            </p>
-          )}
-        </div>
+        <h1 className="text-2xl font-bold text-ink-900">내 여행</h1>
         {isRemoteEnabled() && (
           <button
             onClick={() => setShowOnlineForm((v) => !v)}

@@ -20,7 +20,6 @@ export default function RemoteExpensesPage({ params }: { params: { shareId: stri
 
   const [tab, setTab] = useState<Tab>("list");
   const [dayFilter, setDayFilter] = useState<string>("all");
-  const [privateOnlyFilter, setPrivateOnlyFilter] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | undefined>(undefined);
   const [csvOpen, setCsvOpen] = useState(false);
@@ -30,9 +29,8 @@ export default function RemoteExpensesPage({ params }: { params: { shareId: stri
   const filtered = useMemo(() => {
     return expenses
       .filter((e) => (dayFilter === "all" ? true : e.day === parseInt(dayFilter, 10)))
-      .filter((e) => (privateOnlyFilter ? e.privateOnly : true))
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  }, [expenses, dayFilter, privateOnlyFilter]);
+  }, [expenses, dayFilter]);
 
   const grandTotalKRW = useMemo(
     () => filtered.reduce((sum, e) => sum + e.amountKRW, 0),
@@ -52,7 +50,7 @@ export default function RemoteExpensesPage({ params }: { params: { shareId: stri
     <div className="mx-auto max-w-2xl px-4 py-4">
       <div className="mb-1">
         <h1 className="text-xl font-bold text-ink-900">가계부</h1>
-        <p className="text-xs text-ink-500">{trip.name} · 온라인 공유중</p>
+        <p className="text-xs text-ink-500">{trip.name}</p>
       </div>
 
       <div className="mt-3 flex gap-1 rounded-xl bg-ink-100 p-1">
@@ -89,16 +87,6 @@ export default function RemoteExpensesPage({ params }: { params: { shareId: stri
                 </option>
               ))}
             </select>
-            <button
-              onClick={() => setPrivateOnlyFilter((v) => !v)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                privateOnlyFilter
-                  ? "border-ink-700 bg-ink-900 text-white"
-                  : "border-ink-200 text-ink-600"
-              }`}
-            >
-              🔒 나만보기 비용
-            </button>
             <button
               onClick={() => setCsvOpen(true)}
               className="ml-auto rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-600"

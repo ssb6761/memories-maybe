@@ -43,6 +43,21 @@ export default function LoginPage() {
     }
     const err = new URLSearchParams(window.location.search).get("error");
     if (err) setError(ERROR_TEXT[err] ?? `로그인에 실패했어요. (${err})`);
+
+    // 로그인 화면으로 넘어갔다가 로그인하지 않고 뒤로 돌아오면, 브라우저가 "이동 중..." 상태의
+    // 화면을 그대로 되살려서 버튼이 눌리지 않았다. 다시 보일 때마다 버튼 상태를 풀어준다.
+    const reset = () => setGoing(null);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reset();
+    };
+    window.addEventListener("pageshow", reset);
+    window.addEventListener("focus", reset);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", reset);
+      window.removeEventListener("focus", reset);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [router]);
 
   function start(provider: LoginProvider) {
@@ -77,7 +92,7 @@ export default function LoginPage() {
               key={b.provider}
               type="button"
               onClick={() => start(b.provider)}
-              disabled={going !== null}
+              disabled={going === b.provider}
               className={`w-full rounded-xl py-3.5 text-[15px] font-semibold active:scale-[0.99] disabled:opacity-60 ${b.className}`}
             >
               {going === b.provider ? "이동 중..." : b.label}

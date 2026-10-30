@@ -50,11 +50,6 @@ export default function ExpenseRow({ expense, tripId, onClick }: Props) {
             <p className="mt-0.5 truncate text-xs text-ink-500">
               결제: {expense.paidBy.join(", ") || "-"} | 함께: {expense.splitWith.join(", ") || "-"}
             </p>
-            {expense.privateOnly && (
-              <span className="mt-1 inline-block rounded-full bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-500">
-                나만보기
-              </span>
-            )}
           </div>
           <div className="shrink-0 text-right">
             <p className="font-bold text-ink-900">{formatAmount(expense.amount, expense.currency)}</p>

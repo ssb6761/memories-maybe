@@ -8,7 +8,6 @@ export default function SettlementPanel({ settlement }: { settlement: Settlement
     <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-card">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-ink-900">정산</h3>
-        <span className="text-xs text-ink-400">나만보기 비용 제외</span>
       </div>
 
       <p className="mt-3 text-xs text-ink-500">총 여행비</p>

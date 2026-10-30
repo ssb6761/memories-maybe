@@ -11,6 +11,7 @@ import {
   fetchRateToKRW,
 } from "@/lib/exchangeRates";
 import ClearableInput from "./ClearableInput";
+import { useAuthUser } from "@/lib/auth";
 
 interface Props {
   open: boolean;
@@ -95,6 +96,10 @@ export default function ExpenseModal({
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState("");
   const [scheduleItemId, setScheduleItemId] = useState("");
+  // 함께한 사람: 결제한 사람 / 함께(나눠 낼) 사람
+  const [paidBy, setPaidBy] = useState<string[]>([]);
+  const [splitWith, setSplitWith] = useState<string[]>([]);
+  const { user } = useAuthUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -115,6 +120,10 @@ export default function ExpenseModal({
     setRateStatus("idle");
     setEditingRate(false);
     setScheduleItemId(initial?.scheduleItemId ?? prefill?.scheduleItemId ?? "");
+    // 새 비용: 나(로그인한 사람)가 결제, 함께는 나만 체크된 상태로 시작
+    const me = travelers.find((t) => user && t.userId === user.id) ?? travelers[0];
+    setPaidBy(initial?.paidBy ?? (me ? [me.name] : []));
+    setSplitWith(initial?.splitWith ?? (me ? [me.name] : []));
     setMenuOpen(false);
     setSaveError("");
     autoRateRef.current = !initial;
@@ -164,7 +173,12 @@ export default function ExpenseModal({
 
   if (!open) return null;
 
-  const canSave = !!title.trim() && amountNumber > 0 && rateStatus !== "loading";
+  const canSave =
+    !!title.trim() && amountNumber > 0 && rateStatus !== "loading" && paidBy.length > 0 && splitWith.length > 0;
+
+  function toggleName(list: string[], setList: (v: string[]) => void, name: string) {
+    setList(list.includes(name) ? list.filter((n) => n !== name) : [...list, name]);
+  }
   const categoryOptions = CATEGORY_PRESETS.includes(category) ? CATEGORY_PRESETS : [category, ...CATEGORY_PRESETS];
 
   function handleAmountChange(value: string) {
@@ -188,8 +202,6 @@ export default function ExpenseModal({
     setSaving(true);
     setSaveError("");
     const linked = scheduleItems.find((s) => s.id === scheduleItemId);
-    const paidBy = initial?.paidBy ?? (travelers[0] ? [travelers[0].name] : []);
-    const splitWith = initial?.splitWith ?? travelers.map((t) => t.name);
     try {
       // onSave가 서버에 저장하는 경우(온라인 공유 여행) 실패할 수 있으므로 반드시
       // 끝까지 기다렸다가 성공했을 때만 닫는다.
@@ -205,7 +217,7 @@ export default function ExpenseModal({
         paymentMethod,
         place: initial?.place ?? prefill?.place ?? linked?.address ?? linked?.name,
         scheduleItemId: scheduleItemId || undefined,
-        privateOnly: initial?.privateOnly ?? false,
+        privateOnly: false,
         paidBy,
         paidByCount: Math.max(1, paidBy.length),
         splitWith,
@@ -454,25 +466,56 @@ export default function ExpenseModal({
               </div>
             </div>
 
+            {/* 함께한 사람: 누가 결제했고(결제), 누구 몫인지(함께) 고른다. 정산에 쓰인다. */}
             <div>
-              <label className={fieldLabel}>연결할 일정 (선택)</label>
-              <div className="relative">
-                <select
-                  value={scheduleItemId}
-                  onChange={(e) => setScheduleItemId(e.target.value)}
-                  className={underlineSelect.replace("font-bold", "font-medium")}
-                >
-                  <option value="">연결 안 함</option>
-                  {scheduleItems
-                    .filter((s) => s.kind !== "memo")
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        DAY {s.day} · {s.name}
-                      </option>
-                    ))}
-                </select>
-                {chevron}
+              <div className="mb-2 flex items-center">
+                <span className="flex-1 text-[13px] font-medium text-ink-400">함께한 사람{required}</span>
+                <span className="w-12 text-center text-[13px] font-medium text-ink-400">결제</span>
+                <span className="w-12 text-center text-[13px] font-medium text-ink-400">함께</span>
               </div>
+              <div className="space-y-1">
+                {travelers.map((t) => {
+                  const isMe = !!user && t.userId === user.id;
+                  const check = (on: boolean, onClick: () => void, label: string) => (
+                    <button
+                      type="button"
+                      onClick={onClick}
+                      aria-label={label}
+                      aria-pressed={on}
+                      className="flex w-12 justify-center"
+                    >
+                      <span
+                        className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                          on ? "bg-brand-500 text-white" : "bg-ink-100 text-transparent"
+                        }`}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    </button>
+                  );
+                  return (
+                    <div key={t.id} className="flex items-center py-1.5">
+                      <span
+                        style={{ backgroundColor: t.color }}
+                        className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                      >
+                        {t.name.slice(0, 1)}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-ink-900">
+                        {isMe ? "(나) " : ""}
+                        {t.name}
+                      </span>
+                      {check(paidBy.includes(t.name), () => toggleName(paidBy, setPaidBy, t.name), `${t.name} 결제`)}
+                      {check(splitWith.includes(t.name), () => toggleName(splitWith, setSplitWith, t.name), `${t.name} 함께`)}
+                    </div>
+                  );
+                })}
+              </div>
+              {(paidBy.length === 0 || splitWith.length === 0) && (
+                <p className="mt-1 text-xs text-red-500">결제한 사람과 함께한 사람을 한 명 이상 골라주세요.</p>
+              )}
             </div>
 
             {saveError && (

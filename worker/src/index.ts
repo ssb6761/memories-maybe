@@ -331,6 +331,9 @@ export default {
 
         // DELETE /api/trips/:shareId/travelers/:travelerId
         if (parts.length === 5 && parts[3] === "travelers" && method === "DELETE") {
+          if (membership.role !== "owner") {
+            return json({ error: "방장만 멤버를 내보낼 수 있어요." }, 403);
+          }
           const target = await db
             .prepare(`SELECT * FROM travelers WHERE id = ? AND trip_id = ?`)
             .bind(parts[4], tripId)

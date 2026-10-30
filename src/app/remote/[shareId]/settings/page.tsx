@@ -6,19 +6,20 @@ import { useRemoteTrip } from "@/lib/useRemoteTrip";
 import ClearableInput from "@/components/ClearableInput";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
 import { findDestination } from "@/lib/destinations";
+import { useAuthUser } from "@/lib/auth";
+import { TravelerAvatar } from "@/components/TravelerBadge";
 
 export default function RemoteSettingsPage({ params }: { params: { shareId: string } }) {
-  const { trip, loaded, updateTrip, addTraveler, removeTraveler } = useRemoteTrip(params.shareId);
+  const { trip, loaded, updateTrip, removeTraveler } = useRemoteTrip(params.shareId);
+  const { user } = useAuthUser();
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [newTraveler, setNewTraveler] = useState("");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState("");
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!trip) return;
@@ -26,9 +27,6 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
     setDestination(trip.destination ?? "");
     setStartDate(trip.startDate);
     setEndDate(trip.endDate);
-    if (typeof window !== "undefined") {
-      setShareUrl(`${window.location.origin}/join/${params.shareId}`);
-    }
   }, [trip, params.shareId]);
 
   if (!loaded || !trip) {
@@ -40,12 +38,6 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
     updateTrip({ name, destination, startDate, endDate });
   }
 
-  function handleCopy() {
-    navigator.clipboard?.writeText(shareUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 px-4 py-4">
@@ -109,79 +101,52 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
         </form>
       </section>
 
+      {/* 멤버 목록. 방장만 다른 멤버를 내보낼 수 있다. */}
       <section className="rounded-2xl border border-ink-100 bg-white p-4">
-        <h2 className="mb-3 text-sm font-bold text-ink-900">동행자 ({trip.travelers.length}명)</h2>
+        <h2 className="mb-3 text-sm font-bold text-ink-900">멤버 ({trip.travelers.length}명)</h2>
         <div className="space-y-2">
-          {trip.travelers.map((t) => (
-            <div key={t.id} className="flex items-center justify-between rounded-xl bg-ink-100/50 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span
-                  style={{ backgroundColor: t.color }}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
-                >
-                  {t.name.slice(0, 1)}
+          {trip.travelers.map((t) => {
+            const isMe = !!user && t.userId === user.id;
+            const iAmOwner = !!user && trip.travelers.some((x) => x.isOwner && x.userId === user.id);
+            return (
+              <div key={t.id} className="flex items-center gap-2 rounded-xl bg-ink-100/50 px-3 py-2.5">
+                <TravelerAvatar traveler={t} size={30} />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink-800">
+                  {isMe ? "(나) " : ""}
+                  {t.name}
                 </span>
-                <span className="text-sm font-medium text-ink-800">{t.name}</span>
                 {t.isOwner && (
-                  <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-600">
+                  <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-600">
                     방장
                   </span>
                 )}
+                {iAmOwner && !t.isOwner && (
+                  <button
+                    type="button"
+                    disabled={removingId === t.id}
+                    onClick={async () => {
+                      if (!confirm(`'${t.name}'님을 이 여행에서 내보낼까요? 내보낸 사람은 다시 초대받아야 볼 수 있어요.`))
+                        return;
+                      setRemovingId(t.id);
+                      try {
+                        await removeTraveler(t.id);
+                      } catch (err: any) {
+                        alert(err?.message ?? "내보내기에 실패했어요.");
+                      } finally {
+                        setRemovingId(null);
+                      }
+                    }}
+                    className="shrink-0 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-500 disabled:opacity-50"
+                  >
+                    {removingId === t.id ? "내보내는 중..." : "내보내기"}
+                  </button>
+                )}
               </div>
-              {!t.isOwner && (
-                <button
-                  onClick={() => removeTraveler(t.id)}
-                  className="text-xs font-medium text-ink-400 hover:text-red-500"
-                >
-                  제거
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <div className="mt-3 flex gap-2">
-          <ClearableInput
-            value={newTraveler}
-            onChange={(e) => setNewTraveler(e.target.value)}
-            placeholder="동행자 이름"
-            className="flex-1 rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-          />
-          <button
-            onClick={() => {
-              if (!newTraveler.trim()) return;
-              addTraveler(newTraveler.trim());
-              setNewTraveler("");
-            }}
-            className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white"
-          >
-            추가
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-ink-100 bg-white p-4">
-        <h2 className="mb-1 text-sm font-bold text-ink-900">친구 초대</h2>
-        <p className="mb-3 text-xs text-ink-500">
-          아래 초대 링크를 보내면, 받은 사람이 로그인한 뒤 "참여하기"를 눌러 이 여행의 멤버가
-          돼요. 멤버끼리 일정 · 가계부를 함께 보고 고칠 수 있어요.
-        </p>
-        <div className="flex items-center gap-2">
-          <input
-            readOnly
-            value={shareUrl}
-            className="flex-1 rounded-xl border border-ink-200 bg-ink-100/50 px-3 py-2 text-xs text-ink-600"
-          />
-          <button
-            onClick={handleCopy}
-            className="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white"
-          >
-            {copied ? "복사됨!" : "초대 링크 복사"}
-          </button>
-        </div>
-        <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-[11px] leading-relaxed text-emerald-700">
-          초대 코드: <b>{params.shareId}</b> — "내 여행" 화면에서 이 코드를 입력해도 참여할 수
-          있어요. 코드를 아는 사람은 로그인 후 참여할 수 있으니 같이 가는 사람에게만 보내주세요.
-          멤버를 빼려면 위 동행자 목록에서 "제거"를 누르세요.
+        <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
+          친구 초대는 화면 위쪽 동그라미 옆 + 버튼으로 할 수 있어요. 내보내도 그 사람이 쓴 가계부 기록은 남아요.
         </p>
       </section>
 
