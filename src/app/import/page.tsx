@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import {
+  parseBackupJson,
   parseTripleHtml,
   parseTripleNextData,
   TripleImportError,
@@ -66,13 +67,16 @@ export default function ImportPage() {
     }
   }
 
+  // 백업 JSON(…_백업.json) 또는 트리플 페이지를 저장한 HTML 파일
   function handleFile(file: File) {
     setError("");
     setTrip(null);
     const reader = new FileReader();
     reader.onload = () => {
+      const text = String(reader.result ?? "");
       try {
-        show(parseTripleHtml(String(reader.result ?? "")));
+        const isJson = /\.json$/i.test(file.name) || /^\s*[\[{]/.test(text.replace(/^﻿/, ""));
+        show(isJson ? parseBackupJson(text) : parseTripleHtml(text));
       } catch (err: any) {
         setError(err?.message ?? "파일에서 일정을 찾지 못했어요.");
       }
@@ -144,21 +148,23 @@ export default function ImportPage() {
           )}
 
           <div className="mt-8 border-t border-ink-100 pt-4">
-            <p className="text-xs font-semibold text-ink-500">링크로 안 될 때</p>
+            <p className="text-xs font-semibold text-ink-500">백업 파일이 있다면</p>
             <p className="mt-1 text-xs leading-relaxed text-ink-400">
-              PC 크롬에서 공유 링크를 열고 Ctrl+S → "웹페이지, HTML만"으로 저장한 파일을 올려도 돼요.
+              미리 받아 둔 <b>…_백업.json</b> 파일을 올리면 트리플이 없어도 그대로 가져와요.
+              <br />
+              (링크가 안 될 때는 PC 크롬에서 공유 링크를 열고 Ctrl+S → "웹페이지, HTML만"으로 저장한 파일도 돼요.)
             </p>
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               className="mt-2 rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-semibold text-ink-600"
             >
-              HTML 파일로 가져오기
+              백업 파일로 가져오기
             </button>
             <input
               ref={fileRef}
               type="file"
-              accept=".html,.htm,text/html"
+              accept=".json,application/json,.html,.htm,text/html"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];

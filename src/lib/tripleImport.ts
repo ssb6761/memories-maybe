@@ -205,3 +205,88 @@ export function parseTripleNextData(nextData: any): ImportedTrip {
 export function parseTripleHtml(html: string): ImportedTrip {
   return parseTripleNextData(extractNextData(html));
 }
+
+// ── 백업 파일 ────────────────────────────────────────────────
+// 트리플 종료(2026.11.3) 전에 받아 둔 백업 JSON (format: "memories-maybe-triple-backup").
+// 트리플 서버가 없어져도 이 파일만으로 여행을 다시 만들 수 있다.
+export const BACKUP_FORMAT = "memories-maybe-triple-backup";
+
+export function parseBackupJson(input: string | any): ImportedTrip {
+  let data: any = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input.replace(/^﻿/, ""));
+    } catch {
+      throw new TripleImportError("백업 파일을 읽지 못했어요. JSON 파일이 맞는지 확인해주세요.");
+    }
+  }
+  if (data?.format !== BACKUP_FORMAT || !data?.trip || !Array.isArray(data?.days)) {
+    throw new TripleImportError("추억일지도 백업 파일이 아니에요. '…백업.json' 파일을 골라주세요.");
+  }
+
+  const t = data.trip;
+  const regions: string[] = (t.regions ?? []).map((r: any) => r?.ko || r?.en).filter(Boolean);
+  const destination = regions.length ? regions.join(", ") : undefined;
+
+  const items: ImportedScheduleItem[] = [];
+  for (const d of data.days) {
+    const day = Number(d?.day) || 1;
+    for (const it of d?.items ?? []) {
+      const time = normTime(it.time);
+      const memo = it.memo ? String(it.memo) : undefined;
+
+      if (it.kind === "flight" && it.flight) {
+        const f = it.flight;
+        const flight: FlightInfo = {
+          flightNo: String(f.flightNo ?? "항공편").replace(/\s+/g, "").toUpperCase(),
+          airline: f.airline || undefined,
+          depAirport: f.from || undefined,
+          arrAirport: f.to || undefined,
+          depTime: normTime(f.depTime),
+          arrTime: normTime(f.arrTime),
+          arrNextDay: !!(f.depDate && f.arrDate && f.arrDate > f.depDate),
+        };
+        items.push({
+          day,
+          kind: "flight",
+          name: flight.flightNo,
+          category: "교통",
+          time: flight.depTime ?? time,
+          memo: [f.memo, memo].filter(Boolean).join("\n") || undefined,
+          flight,
+        });
+        continue;
+      }
+
+      const p = it.place;
+      if (p) {
+        items.push({
+          day,
+          kind: "place",
+          name: String(p.name || pickName(p.names)).trim(),
+          category: categoryOf(p.type, p.categories ?? []),
+          time,
+          memo,
+          ...(typeof p.lat === "number" && typeof p.lng === "number" ? { lat: p.lat, lng: p.lng } : {}),
+        });
+        continue;
+      }
+
+      const tnaTitle = it.tnaProduct?.title || it.tnaProduct?.name;
+      if (tnaTitle) {
+        items.push({ day, kind: "place", name: String(tnaTitle), category: "액티비티", time, memo });
+        continue;
+      }
+
+      if (memo) items.push({ day, kind: "memo", name: "메모", category: "기타", time, memo });
+    }
+  }
+
+  const startDate = toIsoDate(t.startDate) ?? toIsoDate(new Date().toISOString())!;
+  let endDate = toIsoDate(t.endDate);
+  const maxDay = Math.max(data.days.length, ...items.map((i) => i.day), 1);
+  if (!endDate || endDate < startDate) endDate = addDays(startDate, maxDay - 1);
+
+  const name = (t.title && String(t.title).trim()) || `${destination ?? "트리플"} 여행`;
+  return { name, destination, startDate, endDate, items };
+}
