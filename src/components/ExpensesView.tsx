@@ -6,6 +6,7 @@ import { totalDaysOf } from "@/lib/scheduleUtils";
 import { calculateSettlement } from "@/lib/settlement";
 import { formatKRW } from "@/lib/currency";
 import ExpenseRow from "./ExpenseRow";
+import { useDragReorder } from "@/lib/useDragReorder";
 import ExpenseModal from "./ExpenseModal";
 import CsvImportModal from "./CsvImportModal";
 import SettlementPanel from "./SettlementPanel";
@@ -126,16 +127,18 @@ export default function ExpensesView({
     setEditMode(true);
   }
 
-  // 같은 날짜 안에서만 위/아래로 옮긴다.
-  function move(id: string, delta: -1 | 1) {
-    const ids = ordered.map((e) => e.id);
-    const i = ids.indexOf(id);
-    const j = i + delta;
-    if (j < 0 || j >= ids.length) return;
-    if ((ordered[i].day ?? 0) !== (ordered[j].day ?? 0)) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    setDraftOrder(ids);
-  }
+  // ≡ 손잡이로 끌어서 순서 바꾸기. 같은 날짜 묶음 안에서만 움직일 수 있다.
+  const drag = useDragReorder(
+    visible.map((e) => e.id),
+    (nextVisible) => {
+      const dayOf = new Map(ordered.map((e) => [e.id, e.day ?? 0]));
+      const days = nextVisible.map((id) => dayOf.get(id) ?? 0);
+      if (days.some((d, i) => i > 0 && d < days[i - 1])) return; // 다른 날짜로 넘어가려 하면 무시
+      const visSet = new Set(nextVisible);
+      let k = 0;
+      setDraftOrder(ordered.map((e) => (visSet.has(e.id) ? nextVisible[k++] : e.id)));
+    }
+  );
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -331,9 +334,10 @@ export default function ExpensesView({
                 {day > 0 && <span className="ml-1.5">{dayDateLabel(trip.startDate, day)}</span>}
               </h2>
               <div className="rounded-2xl border border-ink-100 bg-white px-4">
-                {list.map((e, idx) => (
+                {list.map((e) => (
                   <ExpenseRow
                     key={e.id}
+                    rowRef={drag.itemRef(e.id)}
                     expense={e}
                     onClick={() => {
                       setEditing(e);
@@ -342,10 +346,8 @@ export default function ExpensesView({
                     editMode={editMode}
                     selected={selected.has(e.id)}
                     onToggleSelect={() => toggleSelect(e.id)}
-                    canMoveUp={idx > 0}
-                    canMoveDown={idx < list.length - 1}
-                    onMoveUp={onReorder ? () => move(e.id, -1) : undefined}
-                    onMoveDown={onReorder ? () => move(e.id, 1) : undefined}
+                    dragHandleProps={onReorder ? drag.handleProps(e.id) : undefined}
+                    dragging={drag.dragId === e.id}
                   />
                 ))}
               </div>

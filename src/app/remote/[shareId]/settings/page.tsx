@@ -8,14 +8,16 @@ import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
 import { findDestination, joinDestinations, splitDestinations } from "@/lib/destinations";
 import { useAuthUser } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { TravelerAvatar } from "@/components/TravelerBadge";
 import Emoji from "@/components/Emoji";
 
 export default function RemoteSettingsPage({ params }: { params: { shareId: string } }) {
-  const { trip, loaded, updateTrip, removeTraveler } = useRemoteTrip(params.shareId);
+  const { trip, loaded, updateTrip } = useRemoteTrip(params.shareId);
   const { user } = useAuthUser();
-  const [removingId, setRemovingId] = useState<string | null>(null);
   const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
@@ -36,9 +38,48 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
     return <div className="py-20 text-center text-sm text-ink-500">불러오는 중...</div>;
   }
 
-  function handleSaveInfo(e: FormEvent) {
+  const iAmOwner = !!user && trip.travelers.some((x) => x.isOwner && x.userId === user.id);
+
+  async function handleSaveInfo(e: FormEvent) {
     e.preventDefault();
-    updateTrip({ name, destination, startDate, endDate });
+    if (!trip || saving) return;
+    const nextName = name.trim();
+    if (!nextName) {
+      alert("여행 이름을 입력해주세요.");
+      return;
+    }
+    const unchanged =
+      nextName === trip.name &&
+      destination === (trip.destination ?? "") &&
+      startDate === trip.startDate &&
+      endDate === trip.endDate;
+    if (unchanged) {
+      alert("변경된 사항이 없습니다.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateTrip({ name: nextName, destination, startDate, endDate });
+      alert("저장되었습니다.");
+    } catch (err: any) {
+      alert(err?.message ?? "저장하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteTrip() {
+    if (!trip || deleting) return;
+    if (!confirm(`'${trip.name}' 여행을 삭제할까요?\n일정, 가계부, 멤버 정보가 모두 지워지고 되돌릴 수 없어요.`)) return;
+    setDeleting(true);
+    try {
+      await api.deleteTrip(params.shareId);
+      alert("여행이 삭제되었습니다.");
+      router.replace("/trips");
+    } catch (err: any) {
+      alert(err?.message ?? "삭제하지 못했어요. 다시 시도해주세요.");
+      setDeleting(false);
+    }
   }
 
 
@@ -101,20 +142,20 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
           </div>
           <button
             type="submit"
-            className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white active:scale-[0.99]"
+            disabled={saving}
+            className="w-full rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
           >
-            저장
+            {saving ? "저장 중..." : "저장"}
           </button>
         </form>
       </section>
 
-      {/* 멤버 목록. 방장만 다른 멤버를 내보낼 수 있다. */}
+      {/* 멤버 목록 */}
       <section className="rounded-2xl border border-ink-100 bg-white p-4">
         <h2 className="mb-3 text-sm font-bold text-ink-900">멤버 ({trip.travelers.length}명)</h2>
         <div className="space-y-2">
           {trip.travelers.map((t) => {
             const isMe = !!user && t.userId === user.id;
-            const iAmOwner = !!user && trip.travelers.some((x) => x.isOwner && x.userId === user.id);
             return (
               <div key={t.id} className="flex items-center gap-2 rounded-xl bg-ink-100/50 px-3 py-2.5">
                 <TravelerAvatar traveler={t} size={30} />
@@ -127,33 +168,12 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
                     방장
                   </span>
                 )}
-                {iAmOwner && !t.isOwner && (
-                  <button
-                    type="button"
-                    disabled={removingId === t.id}
-                    onClick={async () => {
-                      if (!confirm(`'${t.name}'님을 이 여행에서 내보낼까요? 내보낸 사람은 다시 초대받아야 볼 수 있어요.`))
-                        return;
-                      setRemovingId(t.id);
-                      try {
-                        await removeTraveler(t.id);
-                      } catch (err: any) {
-                        alert(err?.message ?? "내보내기에 실패했어요.");
-                      } finally {
-                        setRemovingId(null);
-                      }
-                    }}
-                    className="shrink-0 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-500 disabled:opacity-50"
-                  >
-                    {removingId === t.id ? "내보내는 중..." : "내보내기"}
-                  </button>
-                )}
               </div>
             );
           })}
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
-          친구 초대는 화면 위쪽 동그라미 옆 + 버튼으로 할 수 있어요. 내보내도 그 사람이 쓴 가계부 기록은 남아요.
+          친구 초대는 화면 위쪽 동그라미 옆 + 버튼으로 할 수 있어요.
         </p>
       </section>
 
@@ -173,6 +193,23 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
           setEndDate(end);
         }}
       />
+
+      {iAmOwner && (
+        <section className="rounded-2xl border border-red-100 bg-white p-4">
+          <h2 className="text-sm font-bold text-ink-900">여행 삭제</h2>
+          <p className="mt-1 text-xs leading-relaxed text-ink-500">
+            일정, 가계부, 멤버 정보가 모두 지워지고 되돌릴 수 없어요. 함께하는 멤버들의 목록에서도 사라져요.
+          </p>
+          <button
+            type="button"
+            onClick={handleDeleteTrip}
+            disabled={deleting}
+            className="mt-3 w-full rounded-xl border border-red-300 bg-white py-2.5 text-sm font-semibold text-red-500 active:scale-[0.99] disabled:opacity-60"
+          >
+            {deleting ? "삭제 중..." : "이 여행 삭제"}
+          </button>
+        </section>
+      )}
 
       <button
         onClick={() => router.push("/trips")}

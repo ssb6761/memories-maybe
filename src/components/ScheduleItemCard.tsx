@@ -16,10 +16,11 @@ interface Props {
   reorderMode?: boolean;
   checked?: boolean; // 편집 모드에서 삭제용으로 선택됐는지
   onToggleCheck?: () => void;
-  canMoveUp?: boolean;
-  canMoveDown?: boolean;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+  dragHandleProps?: Record<string, any>; // ≡ 손잡이에 붙일 드래그 이벤트
+  dragging?: boolean;
+  // 왼쪽 세로선을 위/아래로 이어 그릴지 (첫 항목은 위, 마지막 항목은 아래가 없다)
+  lineTop?: boolean;
+  lineBottom?: boolean;
 }
 
 export default function ScheduleItemCard({
@@ -32,10 +33,10 @@ export default function ScheduleItemCard({
   reorderMode = false,
   checked = false,
   onToggleCheck,
-  canMoveUp = false,
-  canMoveDown = false,
-  onMoveUp,
-  onMoveDown,
+  dragHandleProps,
+  dragging = false,
+  lineTop = false,
+  lineBottom = false,
 }: Props) {
   const isMemo = item.kind === "memo";
   const isFlight = item.kind === "flight";
@@ -44,10 +45,14 @@ export default function ScheduleItemCard({
   const expenseTotal = linkedExpenses.reduce((sum, e) => sum + e.amountKRW, 0);
 
   return (
-    <div className="relative flex items-center gap-3 pl-1">
-      {/* 왼쪽 세로 타임라인: 번호 원(장소) 또는 메모 아이콘. 카드 높이의 가운데에 오도록
-          items-center로 세로 중앙 정렬한다(예전엔 위에 붙어 있었다). */}
-      <div className="flex w-8 shrink-0 flex-col items-center">
+    <div className={`relative flex items-stretch gap-3 pl-1 ${dragging ? "z-20" : ""}`}>
+      {/* 왼쪽 세로 타임라인: 번호 원(장소) 또는 메모 아이콘을 카드 세로 가운데에 두고,
+          위·아래 항목과 이어지는 세로선을 그린다. */}
+      <div className="relative flex w-8 shrink-0 flex-col items-center justify-center">
+        {lineTop && <span className="absolute left-1/2 top-0 h-1/2 w-[2px] -translate-x-1/2 bg-ink-400" aria-hidden />}
+        {lineBottom && (
+          <span className="absolute bottom-0 left-1/2 top-1/2 w-[2px] -translate-x-1/2 bg-ink-400" aria-hidden />
+        )}
         {isMemo ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-100 text-sm">
             <Emoji e="📝" size={15} />
@@ -64,7 +69,9 @@ export default function ScheduleItemCard({
             {index}
           </span>
         )}
-        {item.time && <span className="mt-1 text-[11px] font-medium text-ink-500">{item.time}</span>}
+        {item.time && (
+          <span className="z-10 mt-1 rounded bg-[#f7f8fa] px-0.5 text-[11px] font-medium leading-tight text-ink-500">{item.time}</span>
+        )}
       </div>
 
       {/* 카드: 버튼 안에 버튼이 중첩되지 않도록 div + role="button"으로 구성 */}
@@ -76,8 +83,8 @@ export default function ScheduleItemCard({
         onKeyDown={(e) => {
           if (!reorderMode && (e.key === "Enter" || e.key === " ")) onClick();
         }}
-        className={`min-w-0 flex-1 rounded-2xl border bg-white px-3.5 py-3 text-left shadow-card transition
-                    cursor-pointer active:scale-[0.99]
+        className={`min-w-0 flex-1 rounded-md border bg-white px-3.5 py-3 text-left shadow-card transition
+                    cursor-pointer active:scale-[0.99] ${dragging ? "scale-[1.02] shadow-pop" : ""}
                     ${
                       checked
                         ? "border-red-400 ring-2 ring-red-100"
@@ -153,27 +160,15 @@ export default function ScheduleItemCard({
           </div>
 
           {reorderMode ? (
-            // ▲▼를 눌렀을 때 카드 선택(체크)까지 같이 바뀌지 않도록 막는다.
-            <div className="flex shrink-0 flex-col gap-1" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                onClick={onMoveUp}
-                disabled={!canMoveUp}
-                className="flex h-7 w-8 items-center justify-center rounded-lg bg-ink-100 text-xs text-ink-600 disabled:opacity-30"
-                aria-label="위로 이동"
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                onClick={onMoveDown}
-                disabled={!canMoveDown}
-                className="flex h-7 w-8 items-center justify-center rounded-lg bg-ink-100 text-xs text-ink-600 disabled:opacity-30"
-                aria-label="아래로 이동"
-              >
-                ▼
-              </button>
-            </div>
+            <button
+              type="button"
+              {...dragHandleProps}
+              className="flex h-9 w-9 shrink-0 cursor-grab items-center justify-center rounded-md text-ink-400 active:cursor-grabbing active:bg-ink-100"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+              </svg>
+            </button>
           ) : (
             <button
               type="button"

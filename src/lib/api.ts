@@ -63,7 +63,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // 내 여행 목록 한 줄
-export type MyTrip = Trip & { version: number; role: "owner" | "member" };
+export type MyTrip = Trip & { version: number; role: "owner" | "member"; companionCount?: number };
 
 export interface TripPreview {
   shareId: string;
@@ -102,6 +102,10 @@ export const api = {
 
   joinTrip(shareId: string): Promise<RemoteTripPayload> {
     return request(`/api/trips/${shareId}/join`, { method: "POST" });
+  },
+
+  deleteTrip(shareId: string): Promise<{ ok: boolean }> {
+    return request(`/api/trips/${shareId}`, { method: "DELETE" });
   },
 
   leaveTrip(shareId: string): Promise<{ ok: boolean }> {

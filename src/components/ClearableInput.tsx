@@ -27,7 +27,7 @@ export default function ClearableInput({ className = "", value, onChange, disabl
         disabled={disabled}
         readOnly={readOnly}
         {...rest}
-        className={`${className.replace(/\bflex-1\b/, "")} w-full ${hasValue ? "pr-9" : ""}`}
+        className={`${className.replace(/\bflex-1\b/, "")} w-full ${hasValue ? "pr-10" : ""}`}
       />
       {hasValue && !disabled && !readOnly && (
         <button
@@ -35,11 +35,16 @@ export default function ClearableInput({ className = "", value, onChange, disabl
           // 누르는 순간 입력칸 포커스가 빠지지 않게(키보드가 내려가지 않게) 막는다.
           onMouseDown={(e) => e.preventDefault()}
           onClick={clear}
-          className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-ink-300 text-[10px] font-bold text-white"
+          // 눈에 보이는 동그라미는 22px, 누르는 영역은 32px로 넉넉하게
+          className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center"
           aria-label="입력 내용 지우기"
           tabIndex={-1}
         >
-          ✕
+          <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-ink-400 text-white">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          </span>
         </button>
       )}
     </div>

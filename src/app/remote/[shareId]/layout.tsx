@@ -8,6 +8,8 @@ import BottomNav from "@/components/BottomNav";
 import { TravelerStack } from "@/components/TravelerBadge";
 import InviteSheet from "@/components/InviteSheet";
 import Emoji from "@/components/Emoji";
+import { formatNights } from "@/components/DateRangePicker";
+import { findDestination } from "@/lib/destinations";
 
 function formatRange(start: string, end: string) {
   const s = new Date(start);
@@ -66,11 +68,13 @@ export default function RemoteTripLayout({
             </Link>
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold text-ink-900 md:text-lg">
-                <Emoji e={trip?.coverEmoji ?? "🌐"} size={18} /> {trip?.name ?? "불러오는 중..."}
+                <Emoji e={trip?.coverEmoji ?? findDestination(trip?.destination)?.flag ?? "✈️"} size={18} />{" "}
+                {trip?.name ?? "불러오는 중..."}
               </h1>
               {trip && (
                 <p className="truncate text-[11px] text-ink-500 md:text-xs">
                   {formatRange(trip.startDate, trip.endDate)}
+                  <span className="ml-1 text-ink-400">({formatNights(trip.startDate, trip.endDate)})</span>
                 </p>
               )}
             </div>

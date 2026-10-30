@@ -348,13 +348,20 @@ export default {
       if (parts.length === 2 && method === "GET") {
         const rows = await db
           .prepare(
-            `SELECT t.*, m.role AS member_role FROM trips t JOIN trip_members m ON m.trip_id = t.id
-             WHERE m.user_id = ? ORDER BY t.start_date ASC`
+            `SELECT t.*, m.role AS member_role,
+                    (SELECT COUNT(*) FROM travelers tr WHERE tr.trip_id = t.id) AS traveler_count
+             FROM trips t JOIN trip_members m ON m.trip_id = t.id
+             WHERE m.user_id = ? ORDER BY t.start_date DESC`
           )
           .bind(user.id)
           .all<any>();
         return json({
-          trips: (rows.results ?? []).map((r: any) => ({ ...rowToTrip(r, []), role: r.member_role })),
+          trips: (rows.results ?? []).map((r: any) => ({
+            ...rowToTrip(r, []),
+            role: r.member_role,
+            // 나를 뺀 동행자 수 ("1명과 함께" 표시용)
+            companionCount: Math.max(0, Number(r.traveler_count ?? 0) - 1),
+          })),
         });
       }
 
@@ -465,6 +472,21 @@ export default {
           // 동행자 기록은 가계부와 이어져 있어서 남겨두고, 계정 연결만 끊는다.
           await db.prepare(`UPDATE travelers SET user_id = NULL WHERE trip_id = ? AND user_id = ?`).bind(tripId, user.id).run();
           await bumpTripVersion(db, tripId);
+          return json({ ok: true });
+        }
+
+        // DELETE /api/trips/:shareId — 여행 완전 삭제 (방장만). 일정·가계부·동행자·멤버까지 모두 지운다.
+        if (parts.length === 3 && method === "DELETE") {
+          if (membership.role !== "owner") {
+            return json({ error: "여행 삭제는 방장만 할 수 있어요." }, 403);
+          }
+          await db.batch([
+            db.prepare(`DELETE FROM expenses WHERE trip_id = ?`).bind(tripId),
+            db.prepare(`DELETE FROM schedule_items WHERE trip_id = ?`).bind(tripId),
+            db.prepare(`DELETE FROM travelers WHERE trip_id = ?`).bind(tripId),
+            db.prepare(`DELETE FROM trip_members WHERE trip_id = ?`).bind(tripId),
+            db.prepare(`DELETE FROM trips WHERE id = ?`).bind(tripId),
+          ]);
           return json({ ok: true });
         }
 

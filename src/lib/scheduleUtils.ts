@@ -64,3 +64,20 @@ export function totalDaysOf(startDate: string, endDate: string): number {
   const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(1, diff + 1);
 }
+
+// 새 일정을 시간 순서에 맞는 자리에 끼워 넣을 위치.
+// 시간이 같거나 빠른 마지막 항목 바로 뒤에 넣는다. 그런 항목이 없으면 시간이 있는 첫 항목 앞에,
+// 시간이 적힌 항목이 하나도 없으면 맨 뒤에 넣는다. 시간이 없는 새 일정은 항상 맨 뒤.
+export function insertIndexByTime(items: ScheduleItem[], time?: string): number {
+  if (!time) return items.length;
+  let lastLE = -1;
+  let firstTimed = -1;
+  items.forEach((it, i) => {
+    if (!it.time) return;
+    if (firstTimed < 0) firstTimed = i;
+    if (it.time <= time) lastLE = i;
+  });
+  if (lastLE >= 0) return lastLE + 1;
+  if (firstTimed >= 0) return firstTimed;
+  return items.length;
+}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Expense, ScheduleItem, Trip } from "./types";
 import { api, ApiError, RemoteTripPayload } from "./api";
+import { insertIndexByTime, sortedDayItems } from "./scheduleUtils";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -84,8 +85,29 @@ export function useRemoteTrip(shareId: string) {
   );
 
   const upsertScheduleItem = useCallback(
-    async (item: Partial<ScheduleItem> & { day: number; name: string }) =>
-      applyPayload(await api.upsertScheduleItem(shareId, item)),
+    async (item: Partial<ScheduleItem> & { day: number; name: string }) => {
+      const payload = await api.upsertScheduleItem(shareId, item);
+      applyPayload(payload);
+      // 새로 추가한 일정에 시간이 있으면 같은 날 일정들 중 시간 순서에 맞는 자리로 옮긴다.
+      // (서버는 항상 맨 뒤에 붙이므로, 맨 뒤 = 방금 추가한 항목)
+      if (!item.id && item.time) {
+        const dayItems = sortedDayItems(payload.schedule, item.day);
+        const added = dayItems[dayItems.length - 1];
+        if (added) {
+          const others = dayItems.slice(0, -1);
+          const idx = insertIndexByTime(others, item.time);
+          if (idx < others.length) {
+            const ids = others.map((i) => i.id);
+            ids.splice(idx, 0, added.id);
+            try {
+              applyPayload(await api.reorderSchedule(shareId, item.day, ids));
+            } catch {
+              // 자리 옮기기에 실패해도 추가는 된 상태라 조용히 넘어간다
+            }
+          }
+        }
+      }
+    },
     [shareId]
   );
 

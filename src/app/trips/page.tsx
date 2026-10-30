@@ -31,6 +31,7 @@ interface TripCard {
   isOnline: boolean;
   shareId?: string;
   isOwner?: boolean;
+  companionCount?: number; // 나를 뺀 동행자 수
   onOpen: () => void;
 }
 
@@ -135,7 +136,7 @@ export default function TripsPage() {
   }
 
   // 로컬(브라우저 저장) 여행과 온라인(서버 공유) 여행을 하나의 목록으로 합쳐서
-  // 보여준다. 시작일이 빠른 순으로 정렬한다.
+  // 보여준다. 최근(시작일이 늦은) 여행이 위, 오래된 여행이 아래로 가게 정렬한다.
   const combined: TripCard[] = useMemo(() => {
     const localCards: TripCard[] = trips.map((t) => ({
       key: `local-${t.id}`,
@@ -146,6 +147,7 @@ export default function TripsPage() {
       coverEmoji: t.coverEmoji,
       travelerInitials: t.travelers.slice(0, 3).map((tr) => ({ name: tr.name, color: tr.color })),
       isOnline: false,
+      companionCount: Math.max(0, t.travelers.length - 1),
       onOpen: () => router.push(`/trip/${t.id}/schedule`),
     }));
     const onlineCards: TripCard[] = onlineTrips.map((t) => ({
@@ -158,9 +160,10 @@ export default function TripsPage() {
       isOnline: true,
       shareId: t.shareId,
       isOwner: t.role === "owner",
+      companionCount: t.companionCount,
       onOpen: () => router.push(`/remote/${t.shareId}/schedule`),
     }));
-    return [...localCards, ...onlineCards].sort((a, b) => a.startDate.localeCompare(b.startDate));
+    return [...localCards, ...onlineCards].sort((a, b) => b.startDate.localeCompare(a.startDate));
   }, [trips, onlineTrips, router]);
 
   return (
@@ -361,7 +364,7 @@ export default function TripsPage() {
               <p className="text-xs text-ink-500">
                 {formatRange(trip.startDate, trip.endDate)}
                 {trip.destination ? ` · ${trip.destination}` : ""}
-                {trip.isOnline ? ` · ${trip.shareId}` : ""}
+                {trip.companionCount ? ` · ${trip.companionCount}명과 함께` : ""}
               </p>
             </div>
             {trip.travelerInitials && (

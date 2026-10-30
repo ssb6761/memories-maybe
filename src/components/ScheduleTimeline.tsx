@@ -12,6 +12,7 @@ import MemoModal from "./MemoModal";
 import FlightModal from "./FlightModal";
 import ExpenseModal from "./ExpenseModal";
 import Emoji from "./Emoji";
+import { useDragReorder } from "@/lib/useDragReorder";
 
 interface Props {
   day: number;
@@ -167,13 +168,11 @@ export default function ScheduleTimeline({
     setReorderMode(true);
   }
 
-  function move(index: number, delta: -1 | 1) {
-    const ids = displayItems.map((i) => i.id);
-    const target = index + delta;
-    if (target < 0 || target >= ids.length) return;
-    [ids[index], ids[target]] = [ids[target], ids[index]];
-    setDraftOrder(ids);
-  }
+  // ≡ 손잡이로 끌어서 순서 바꾸기
+  const drag = useDragReorder(
+    displayItems.map((i) => i.id),
+    (ids) => setDraftOrder(ids)
+  );
 
   async function finishReorder() {
     const ids = displayItems.map((i) => i.id);
@@ -236,8 +235,9 @@ export default function ScheduleTimeline({
           const linkedExpenses = expenses.filter((e) => e.scheduleItemId === item.id);
           // 순서를 바꾸는 중엔 이동 거리가 맞지 않으니 숨긴다.
           const leg = reorderMode ? undefined : legs[idx];
+          const isLast = idx === displayItems.length - 1;
           return (
-            <div key={item.id}>
+            <div key={item.id} ref={drag.itemRef(item.id)}>
               <ScheduleItemCard
                 item={item}
                 index={numbers.get(item.id) ?? 0}
@@ -248,26 +248,32 @@ export default function ScheduleTimeline({
                 reorderMode={reorderMode}
                 checked={checked.has(item.id)}
                 onToggleCheck={() => toggleChecked(item.id)}
-                canMoveUp={idx > 0}
-                canMoveDown={idx < displayItems.length - 1}
-                onMoveUp={() => move(idx, -1)}
-                onMoveDown={() => move(idx, 1)}
+                dragHandleProps={drag.handleProps(item.id)}
+                dragging={drag.dragId === item.id}
+                lineTop={idx > 0}
+                lineBottom={!isLast}
               />
               {/* 다음 장소까지의 거리만, 번호 원들 사이 세로줄 위에 작게 표시한다. */}
               {leg && (
                 <div className="flex pl-1">
                   <div className="flex w-8 shrink-0 flex-col items-center">
-                    <div className="h-1 w-px bg-ink-200" />
+                    <div className="h-1.5 w-[2px] bg-ink-400" />
                     {leg.km !== null && (
                       <span className="whitespace-nowrap text-[10px] font-medium leading-tight text-ink-400">
                         {formatDistance(leg.km)}
                       </span>
                     )}
-                    <div className="h-1 w-px bg-ink-200" />
+                    <div className="h-1.5 w-[2px] bg-ink-400" />
                   </div>
                 </div>
               )}
-              {(reorderMode || !leg) && <div className="h-2" />}
+              {(reorderMode || !leg) && (
+                <div className="flex h-2 pl-1">
+                  <div className="flex w-8 shrink-0 justify-center">
+                    {!isLast && <div className="h-full w-[2px] bg-ink-400" />}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
