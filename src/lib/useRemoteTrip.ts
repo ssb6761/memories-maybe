@@ -111,6 +111,21 @@ export function useRemoteTrip(shareId: string) {
     [shareId]
   );
 
+  const reorderExpenses = useCallback(
+    async (orderedIds: string[]) => applyPayload(await api.reorderExpenses(shareId, orderedIds)),
+    [shareId]
+  );
+
+  const deleteExpenses = useCallback(
+    async (ids: string[]) => applyPayload(await api.deleteExpenses(shareId, ids)),
+    [shareId]
+  );
+
+  const deleteScheduleItems = useCallback(
+    async (ids: string[]) => applyPayload(await api.deleteScheduleItems(shareId, ids)),
+    [shareId]
+  );
+
   const importExpensesRaw = useCallback(
     async (csvText: string) => {
       const payload = await api.importExpenses(shareId, csvText);
@@ -138,6 +153,9 @@ export function useRemoteTrip(shareId: string) {
     reorderSchedule,
     upsertExpense,
     deleteExpense,
+    reorderExpenses,
+    deleteExpenses,
+    deleteScheduleItems,
     importExpensesRaw,
   };
 }

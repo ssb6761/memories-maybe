@@ -12,11 +12,11 @@ export function TravelerAvatar({ traveler, size = 22 }: { traveler: Traveler; si
   );
 }
 
-export function TravelerStack({ travelers }: { travelers: Traveler[] }) {
+export function TravelerStack({ travelers, size = 22 }: { travelers: Traveler[]; size?: number }) {
   return (
-    <div className="flex -space-x-1.5">
+    <div className="flex -space-x-2">
       {travelers.map((t) => (
-        <TravelerAvatar key={t.id} traveler={t} />
+        <TravelerAvatar key={t.id} traveler={t} size={size} />
       ))}
     </div>
   );

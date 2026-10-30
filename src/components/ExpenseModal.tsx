@@ -30,6 +30,8 @@ interface Props {
     data: Partial<Expense> & { title: string; amount: number; currency: string }
   ) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
+  // "정산 인원 추가": 로그인하지 않은 사람도 이름만으로 정산에 넣을 수 있게 동행자로 추가한다.
+  onAddTraveler?: (name: string) => void | Promise<void>;
 }
 
 const CATEGORY_PRESETS = ["숙소", "항공", "교통", "관광", "식사", "카페", "쇼핑", "액티비티", "기타"];
@@ -81,6 +83,7 @@ export default function ExpenseModal({
   onClose,
   onSave,
   onDelete,
+  onAddTraveler,
 }: Props) {
   const defaultCurrency = currencyForCountry(findDestination(destination)?.country) ?? "KRW";
 
@@ -100,6 +103,12 @@ export default function ExpenseModal({
   const [paidBy, setPaidBy] = useState<string[]>([]);
   const [splitWith, setSplitWith] = useState<string[]>([]);
   const { user } = useAuthUser();
+  const [addPersonOpen, setAddPersonOpen] = useState(false);
+  const [newPerson, setNewPerson] = useState("");
+  const [addingPerson, setAddingPerson] = useState(false);
+  const [addPersonError, setAddPersonError] = useState("");
+  // "그날 환율로 다시 불러오기"를 누를 때마다 값을 바꿔서 환율 조회를 다시 실행한다.
+  const [rateNonce, setRateNonce] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -140,8 +149,16 @@ export default function ExpenseModal({
   }, [open]);
 
   const totalDays = startDate && endDate ? Math.max(1, daysBetween(startDate, endDate)) : 0;
-  // 환율 기준일: 고른 DAY의 실제 날짜. "여행준비"(DAY 없음)는 오늘.
-  const expenseDate = day && startDate ? addDays(startDate, day - 1) : undefined;
+  // 환율 기준일: 고른 DAY의 실제 날짜. "여행준비"(DAY 없음)는 오늘이지만, 이미 지난 여행이면
+  // 여행 시작일 환율을 쓴다 (지난 여행을 기록할 때 오늘 환율이 들어가지 않도록).
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const expenseDate =
+    day && startDate
+      ? addDays(startDate, day - 1)
+      : startDate && startDate < todayIso
+      ? startDate
+      : undefined;
 
   useEffect(() => {
     if (!open || !autoRateRef.current) return;
@@ -166,7 +183,7 @@ export default function ExpenseModal({
     return () => {
       cancelled = true;
     };
-  }, [open, currency, expenseDate]);
+  }, [open, currency, expenseDate, rateNonce]);
 
   const amountNumber = parseFloat(amount) || 0;
   const amountKRW = useMemo(() => Math.round(amountNumber * rate), [amountNumber, rate]);
@@ -362,6 +379,18 @@ export default function ExpenseModal({
                 ) : (
                   <span>{initial ? "저장된 환율" : "직접 입력한 환율"}</span>
                 )}
+                {!editingRate && (rateStatus === "error" || !rateDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      autoRateRef.current = true;
+                      setRateNonce((n) => n + 1);
+                    }}
+                    className="font-medium text-brand-600 underline"
+                  >
+                    그날 환율로 다시 불러오기
+                  </button>
+                )}
                 {!editingRate && (
                   <button
                     type="button"
@@ -516,6 +545,19 @@ export default function ExpenseModal({
               {(paidBy.length === 0 || splitWith.length === 0) && (
                 <p className="mt-1 text-xs text-red-500">결제한 사람과 함께한 사람을 한 명 이상 골라주세요.</p>
               )}
+              {onAddTraveler && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewPerson("");
+                    setAddPersonError("");
+                    setAddPersonOpen(true);
+                  }}
+                  className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-ink-300 py-2.5 text-sm font-semibold text-ink-500"
+                >
+                  + 정산 인원 추가
+                </button>
+              )}
             </div>
 
             {saveError && (
@@ -533,6 +575,63 @@ export default function ExpenseModal({
           </div>
         </div>
       </div>
+
+      {/* 정산 인원 추가: 이름만 입력하는 작은 팝업 */}
+      {addPersonOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-6"
+          onClick={() => !addingPerson && setAddPersonOpen(false)}
+        >
+          <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-1 text-base font-bold text-ink-900">정산 인원 추가</h3>
+            <p className="mb-3 text-xs text-ink-500">앱을 쓰지 않는 사람도 이름만으로 정산에 넣을 수 있어요.</p>
+            <ClearableInput
+              autoFocus
+              value={newPerson}
+              onChange={(e) => setNewPerson(e.target.value)}
+              placeholder="이름"
+              maxLength={20}
+              className="h-[42px] w-full rounded-xl border border-ink-300 px-3 text-sm outline-none focus:border-brand-500"
+            />
+            {addPersonError && <p className="mt-2 text-xs text-red-500">{addPersonError}</p>}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAddPersonOpen(false)}
+                disabled={addingPerson}
+                className="flex-1 rounded-xl border border-ink-200 py-2.5 text-sm font-semibold text-ink-600"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={!newPerson.trim() || addingPerson}
+                onClick={async () => {
+                  const name = newPerson.trim();
+                  if (travelers.some((t) => t.name === name)) {
+                    setAddPersonError("이미 있는 이름이에요.");
+                    return;
+                  }
+                  setAddingPerson(true);
+                  setAddPersonError("");
+                  try {
+                    await onAddTraveler?.(name);
+                    setSplitWith((list) => (list.includes(name) ? list : [...list, name]));
+                    setAddPersonOpen(false);
+                  } catch (err: any) {
+                    setAddPersonError(err?.message ?? "추가하지 못했어요.");
+                  } finally {
+                    setAddingPerson(false);
+                  }
+                }}
+                className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {addingPerson ? "추가 중..." : "추가"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

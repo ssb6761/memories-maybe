@@ -148,6 +148,18 @@ export const api = {
     return request(`/api/trips/${shareId}/expenses`, { method: "POST", body: JSON.stringify(expense) });
   },
 
+  reorderExpenses(shareId: string, orderedIds: string[]): Promise<RemoteTripPayload> {
+    return request(`/api/trips/${shareId}/expenses/reorder`, { method: "POST", body: JSON.stringify({ orderedIds }) });
+  },
+
+  deleteExpenses(shareId: string, ids: string[]): Promise<RemoteTripPayload> {
+    return request(`/api/trips/${shareId}/expenses/delete`, { method: "POST", body: JSON.stringify({ ids }) });
+  },
+
+  deleteScheduleItems(shareId: string, ids: string[]): Promise<RemoteTripPayload> {
+    return request(`/api/trips/${shareId}/schedule/delete`, { method: "POST", body: JSON.stringify({ ids }) });
+  },
+
   deleteExpense(shareId: string, expenseId: string): Promise<RemoteTripPayload> {
     return request(`/api/trips/${shareId}/expenses/${expenseId}`, { method: "DELETE" });
   },

@@ -83,8 +83,8 @@ export default function RemoteTripLayout({
                 className="flex items-center"
                 aria-label="친구 초대"
               >
-                <TravelerStack travelers={trip.travelers} />
-                <span className="-ml-1.5 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-white bg-ink-200 text-sm font-bold leading-none text-ink-600">
+                <TravelerStack travelers={trip.travelers} size={32} />
+                <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-ink-200 text-lg font-bold leading-none text-ink-600">
                   +
                 </span>
               </button>

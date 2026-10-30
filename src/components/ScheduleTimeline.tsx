@@ -27,6 +27,8 @@ interface Props {
   ) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
   onReorder: (day: number, orderedIds: string[]) => void | Promise<void>;
+  // 편집 모드의 "선택 삭제" (한 번에 여러 개). 없으면 하나씩 onDelete로 지운다.
+  onDeleteMany?: (ids: string[]) => void | Promise<void>;
   onSaveExpense: (
     data: Partial<Expense> & { title: string; amount: number; currency: string }
   ) => void | Promise<void>;
@@ -45,6 +47,7 @@ export default function ScheduleTimeline({
   onSave,
   onDelete,
   onReorder,
+  onDeleteMany,
   onSaveExpense,
 }: Props) {
   const items = useMemo(() => sortedDayItems(schedule, day), [schedule, day]);
@@ -57,6 +60,7 @@ export default function ScheduleTimeline({
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
   const [savingOrder, setSavingOrder] = useState(false);
   const [orderError, setOrderError] = useState("");
+  const [checked, setChecked] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setReorderMode(false);
@@ -124,7 +128,35 @@ export default function ScheduleTimeline({
     setModalOpen(true);
   }
 
+  function toggleChecked(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function deleteChecked() {
+    if (checked.size === 0) return;
+    if (!confirm(`선택한 ${checked.size}개 일정을 삭제하시겠습니까?`)) return;
+    setSavingOrder(true);
+    setOrderError("");
+    try {
+      const ids = [...checked];
+      if (onDeleteMany) await onDeleteMany(ids);
+      else for (const id of ids) await onDelete(id);
+      setDraftOrder((list) => list.filter((id) => !checked.has(id)));
+      setChecked(new Set());
+    } catch (err: any) {
+      setOrderError(err?.message ?? "삭제하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
   function startReorder() {
+    setChecked(new Set());
     setDraftOrder(items.map((i) => i.id));
     setOrderError("");
     setReorderMode(true);
@@ -167,7 +199,7 @@ export default function ScheduleTimeline({
 
       {reorderMode && (
         <p className="mb-3 rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
-          ▲▼ 버튼으로 순서를 바꾸고 아래 "완료"를 눌러 저장하세요.
+          ▲▼ 버튼으로 순서를 바꾸고 "완료"를 눌러 저장하세요. 일정을 눌러 선택하면 한꺼번에 삭제할 수 있어요.
         </p>
       )}
 
@@ -186,6 +218,8 @@ export default function ScheduleTimeline({
                 onClick={() => onSelect(selectedId === item.id ? null : item.id)}
                 onEdit={() => openEdit(item)}
                 reorderMode={reorderMode}
+                checked={checked.has(item.id)}
+                onToggleCheck={() => toggleChecked(item.id)}
                 canMoveUp={idx > 0}
                 canMoveDown={idx < displayItems.length - 1}
                 onMoveUp={() => move(idx, -1)}
@@ -218,9 +252,16 @@ export default function ScheduleTimeline({
       {reorderMode ? (
         <div className="mt-3 flex gap-2">
           <button
+            onClick={deleteChecked}
+            disabled={checked.size === 0 || savingOrder}
+            className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-500 disabled:opacity-40"
+          >
+            선택 삭제{checked.size > 0 ? ` (${checked.size})` : ""}
+          </button>
+          <button
             onClick={() => setReorderMode(false)}
             disabled={savingOrder}
-            className="rounded-2xl border border-ink-200 px-5 py-3 text-sm font-semibold text-ink-600 disabled:opacity-50"
+            className="rounded-2xl border border-ink-200 px-4 py-3 text-sm font-semibold text-ink-600 disabled:opacity-50"
           >
             취소
           </button>
@@ -246,7 +287,7 @@ export default function ScheduleTimeline({
           >
             항공 및 메모 추가
           </button>
-          {items.length > 1 && (
+          {items.length > 0 && (
             <button
               onClick={startReorder}
               className="shrink-0 rounded-2xl border border-ink-200 bg-white px-3 py-3 text-xs font-semibold text-ink-500 active:scale-[0.99]"
@@ -287,11 +328,11 @@ export default function ScheduleTimeline({
 
       {addChoiceOpen && (
         <div
-          className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-5"
           onClick={() => setAddChoiceOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-t-2xl bg-white p-5 pb-12 shadow-pop animate-fade-in md:rounded-2xl md:pb-5"
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-pop animate-fade-in"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="mb-4 text-base font-bold text-ink-900">DAY {day}에 무엇을 추가할까요?</h2>

@@ -115,6 +115,7 @@ export interface Expense {
   source: "manual" | "csv"; // 수동 입력인지 CSV 가져오기인지
   importKey?: string; // CSV 중복 확인용 해시
   paymentMethod?: string; // 결제수단: "현금" | "카드"
+  sortOrder?: number; // 가계부 편집에서 정한 순서 (없으면 입력 순서)
   createdAt: string;
   updatedAt: string;
 }

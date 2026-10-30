@@ -67,6 +67,7 @@ const REQUIRED_COLUMNS: Record<string, Record<string, string>> = {
   },
   expenses: {
     payment_method: "TEXT",
+    sort_order: "INTEGER", // 가계부 편집에서 정한 순서 (없으면 입력 순서)
   },
 };
 let schemaReady: Promise<void> | null = null;
@@ -460,6 +461,46 @@ export default {
               )
               .run();
           }
+          await bumpTripVersion(db, tripId);
+          const fresh = await getTripRowByShareId(db, shareId);
+          return json(await getFullTripPayload(db, fresh));
+        }
+
+        // POST /api/trips/:shareId/expenses/reorder  { orderedIds: string[] } — 가계부 순서 저장
+        if (parts.length === 5 && parts[3] === "expenses" && parts[4] === "reorder" && method === "POST") {
+          const body = await request.json<any>();
+          const orderedIds: string[] = Array.isArray(body.orderedIds) ? body.orderedIds : [];
+          const now = nowIso();
+          await db.batch(
+            orderedIds.map((id, i) =>
+              db.prepare(`UPDATE expenses SET sort_order = ?, updated_at = ? WHERE id = ? AND trip_id = ?`).bind(i + 1, now, id, tripId)
+            )
+          );
+          await bumpTripVersion(db, tripId);
+          const fresh = await getTripRowByShareId(db, shareId);
+          return json(await getFullTripPayload(db, fresh));
+        }
+
+        // POST /api/trips/:shareId/expenses/delete  { ids: string[] } — 선택 삭제
+        if (parts.length === 5 && parts[3] === "expenses" && parts[4] === "delete" && method === "POST") {
+          const body = await request.json<any>();
+          const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+          await db.batch(ids.map((id) => db.prepare(`DELETE FROM expenses WHERE id = ? AND trip_id = ?`).bind(id, tripId)));
+          await bumpTripVersion(db, tripId);
+          const fresh = await getTripRowByShareId(db, shareId);
+          return json(await getFullTripPayload(db, fresh));
+        }
+
+        // POST /api/trips/:shareId/schedule/delete  { ids: string[] } — 일정 선택 삭제
+        if (parts.length === 5 && parts[3] === "schedule" && parts[4] === "delete" && method === "POST") {
+          const body = await request.json<any>();
+          const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+          await db.batch(
+            ids.flatMap((id) => [
+              db.prepare(`DELETE FROM schedule_items WHERE id = ? AND trip_id = ?`).bind(id, tripId),
+              db.prepare(`UPDATE expenses SET schedule_item_id = NULL WHERE schedule_item_id = ? AND trip_id = ?`).bind(id, tripId),
+            ])
+          );
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
           return json(await getFullTripPayload(db, fresh));

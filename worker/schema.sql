@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   source TEXT NOT NULL DEFAULT 'manual',
   import_key TEXT,
   payment_method TEXT, -- '현금' | '카드' 등
+  sort_order INTEGER, -- 가계부 편집 순서
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

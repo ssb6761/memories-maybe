@@ -164,15 +164,24 @@ export default function TripsPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-white px-5 pb-10 pt-8 sm:max-w-xl">
-      {/* 맨 위: 오늘 날짜 + 설정 버튼 */}
-      <div className="mb-1 flex items-center justify-between">
-        <p className="text-sm font-medium text-ink-500">{todayLabel}</p>
-        <Link
-          href="/settings"
-          className="-mr-1 rounded-full p-1.5 text-ink-500 hover:bg-ink-100"
-          aria-label="설정"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      {/* 맨 위: 오늘 날짜 */}
+      <p className="mb-1 text-sm font-medium text-ink-500">{todayLabel}</p>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold text-ink-900">내 여행</h1>
+        <div className="flex shrink-0 items-center gap-2">
+          {isRemoteEnabled() && (
+            <button
+              onClick={() => setShowOnlineForm((v) => !v)}
+              className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-card active:scale-95"
+            >
+              + 여행 만들기
+            </button>
+          )}
+          <Link
+            href="/settings"
+            className="flex items-center gap-1 rounded-full border border-ink-200 px-3 py-2 text-sm font-semibold text-ink-600 active:scale-95"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
             <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
             <path
               d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"
@@ -180,18 +189,9 @@ export default function TripsPage() {
               strokeWidth="1.6"
             />
           </svg>
-        </Link>
-      </div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink-900">내 여행</h1>
-        {isRemoteEnabled() && (
-          <button
-            onClick={() => setShowOnlineForm((v) => !v)}
-            className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-card active:scale-95"
-          >
-            + 여행 만들기
-          </button>
-        )}
+            설정
+          </Link>
+        </div>
       </div>
 
       <div className="mt-5 rounded-2xl border border-ink-100 bg-ink-100/40 p-4">

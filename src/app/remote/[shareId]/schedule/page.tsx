@@ -22,6 +22,7 @@ export default function RemoteSchedulePage({
     upsertScheduleItem,
     deleteScheduleItem,
     reorderSchedule,
+    deleteScheduleItems,
     upsertExpense,
   } = useRemoteTrip(params.shareId);
 
@@ -72,6 +73,10 @@ export default function RemoteSchedulePage({
             setSelectedId((cur) => (cur === id ? null : cur));
           }}
           onReorder={reorderSchedule}
+          onDeleteMany={async (ids) => {
+            await deleteScheduleItems(ids);
+            setSelectedId((cur) => (cur && ids.includes(cur) ? null : cur));
+          }}
           onSaveExpense={(data) => upsertExpense(data)}
         />
       </div>

@@ -24,11 +24,13 @@ export function fitMapToDestination(map: any, destination?: string, isCancelled:
   }
   const cached = viewportCache.get(dest);
   if (cached) {
-    map.fitBounds(cached);
+    applyView(map, cached);
     return;
   }
   const known = findDestination(dest);
-  const address = known ? `${known.en.split(" ")[0]}, ${known.country}` : dest;
+  // 도시 단위로 보여주기 위해 도시 이름으로 찾는다. 하와이·오키나와처럼 지역 이름인 곳은
+  // 대표 도시(geo)로 찾는다.
+  const address = known ? known.geo ?? `${known.en.split(" ")[0]}, ${known.country}` : dest;
   new gmaps.Geocoder().geocode({ address }, (results: any[] | null, status: string) => {
     if (isCancelled()) return;
     if (status !== "OK" || !results?.[0]) {
@@ -37,15 +39,28 @@ export function fitMapToDestination(map: any, destination?: string, isCancelled:
       return;
     }
     const geometry = results[0].geometry;
-    const viewport = geometry.viewport ?? geometry.bounds;
-    if (viewport) {
-      viewportCache.set(dest, viewport);
-      map.fitBounds(viewport);
-    } else {
-      map.setCenter(geometry.location);
-      map.setZoom(11);
-    }
+    const view = { center: geometry.location, viewport: geometry.viewport ?? geometry.bounds };
+    viewportCache.set(dest, view);
+    applyView(map, view);
   });
+}
+
+// 찾은 영역이 너무 넓으면(나라·큰 섬 전체 등) 도시 정도 크기(줌 11)로 가운데만 맞춘다.
+// 도시면 그 도시 영역에 맞춘다.
+const CITY_ZOOM = 11;
+function applyView(map: any, view: { center: any; viewport?: any }) {
+  if (view.viewport) {
+    map.fitBounds(view.viewport);
+    window.google.maps.event.addListenerOnce(map, "idle", () => {
+      if ((map.getZoom() ?? CITY_ZOOM) < CITY_ZOOM) {
+        map.setCenter(view.center);
+        map.setZoom(CITY_ZOOM);
+      }
+    });
+  } else {
+    map.setCenter(view.center);
+    map.setZoom(CITY_ZOOM + 1);
+  }
 }
 
 // 핀 위에 떠 있는 작은 이름표. OverlayView는 구글 스크립트가 로드된 뒤에만 쓸 수 있어서

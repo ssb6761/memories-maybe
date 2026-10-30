@@ -8,6 +8,7 @@ export interface Destination {
   flag: string;
   en: string;
   popular?: boolean;
+  geo?: string; // 지도에서 찾을 때 쓸 주소 (지역 이름이라 너무 넓게 잡히는 곳은 대표 도시)
 }
 
 export interface DestinationRegion {
@@ -19,7 +20,7 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
   {
     region: "국내",
     cities: [
-      { city: "제주", country: "대한민국", flag: "🇰🇷", en: "Jeju", popular: true },
+      { city: "제주", country: "대한민국", flag: "🇰🇷", en: "Jeju", popular: true, geo: "Jeju City" },
       { city: "부산", country: "대한민국", flag: "🇰🇷", en: "Busan", popular: true },
       { city: "강릉", country: "대한민국", flag: "🇰🇷", en: "Gangneung" },
       { city: "경주", country: "대한민국", flag: "🇰🇷", en: "Gyeongju" },
@@ -38,7 +39,7 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
       { city: "오사카", country: "일본", flag: "🇯🇵", en: "Osaka", popular: true },
       { city: "후쿠오카", country: "일본", flag: "🇯🇵", en: "Fukuoka", popular: true },
       { city: "삿포로", country: "일본", flag: "🇯🇵", en: "Sapporo" },
-      { city: "오키나와", country: "일본", flag: "🇯🇵", en: "Okinawa", popular: true },
+      { city: "오키나와", country: "일본", flag: "🇯🇵", en: "Okinawa", popular: true, geo: "Naha, Okinawa" },
       { city: "교토", country: "일본", flag: "🇯🇵", en: "Kyoto" },
       { city: "나고야", country: "일본", flag: "🇯🇵", en: "Nagoya" },
       { city: "고베", country: "일본", flag: "🇯🇵", en: "Kobe" },
@@ -67,7 +68,7 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
       { city: "보라카이", country: "필리핀", flag: "🇵🇭", en: "Boracay" },
       { city: "보홀", country: "필리핀", flag: "🇵🇭", en: "Bohol" },
       { city: "마닐라", country: "필리핀", flag: "🇵🇭", en: "Manila" },
-      { city: "발리", country: "인도네시아", flag: "🇮🇩", en: "Bali", popular: true },
+      { city: "발리", country: "인도네시아", flag: "🇮🇩", en: "Bali", popular: true, geo: "Kuta, Bali" },
       { city: "싱가포르", country: "싱가포르", flag: "🇸🇬", en: "Singapore", popular: true },
       { city: "코타키나발루", country: "말레이시아", flag: "🇲🇾", en: "Kota Kinabalu" },
       { city: "쿠알라룸푸르", country: "말레이시아", flag: "🇲🇾", en: "Kuala Lumpur" },
@@ -95,9 +96,9 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
   {
     region: "미주 · 대양주",
     cities: [
-      { city: "괌", country: "미국", flag: "🇬🇺", en: "Guam", popular: true },
+      { city: "괌", country: "미국", flag: "🇬🇺", en: "Guam", popular: true, geo: "Tumon, Guam" },
       { city: "사이판", country: "미국", flag: "🇲🇵", en: "Saipan" },
-      { city: "하와이", country: "미국", flag: "🇺🇸", en: "Hawaii Honolulu", popular: true },
+      { city: "하와이", country: "미국", flag: "🇺🇸", en: "Hawaii Honolulu", popular: true, geo: "Honolulu, Hawaii" },
       { city: "뉴욕", country: "미국", flag: "🇺🇸", en: "New York", popular: true },
       { city: "로스앤젤레스", country: "미국", flag: "🇺🇸", en: "Los Angeles LA" },
       { city: "샌프란시스코", country: "미국", flag: "🇺🇸", en: "San Francisco" },
@@ -150,7 +151,7 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
     cities: [
       { city: "두바이", country: "아랍에미리트", flag: "🇦🇪", en: "Dubai", popular: true },
       { city: "아부다비", country: "아랍에미리트", flag: "🇦🇪", en: "Abu Dhabi" },
-      { city: "몰디브", country: "몰디브", flag: "🇲🇻", en: "Maldives" },
+      { city: "몰디브", country: "몰디브", flag: "🇲🇻", en: "Maldives", geo: "Male, Maldives" },
       { city: "카이로", country: "이집트", flag: "🇪🇬", en: "Cairo" },
       { city: "카트만두", country: "네팔", flag: "🇳🇵", en: "Kathmandu" },
       { city: "알마티", country: "카자흐스탄", flag: "🇰🇿", en: "Almaty" },

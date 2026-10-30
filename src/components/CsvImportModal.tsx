@@ -13,8 +13,30 @@ interface Props {
   onImport?: (drafts: ImportedExpenseDraft[]) => { added: number; duplicates: number };
   // 온라인 공유 모드: 원본 CSV 텍스트를 서버로 보내 서버가 파싱/중복확인까지 처리
   onImportRaw?: (csvText: string) => Promise<{ added: number; duplicates: number }>;
-  sampleCsvText: string;
+  sampleCsvText?: string;
 }
+
+// CSV 원문을 "헤더 줄"과 "데이터 줄들"로 나눈다. 따옴표 안의 줄바꿈은 한 줄로 취급한다.
+function splitCsvRecords(text: string): string[] {
+  const records: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') inQuotes = !inQuotes;
+    if ((ch === "\n" || ch === "\r") && !inQuotes) {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      if (cur.trim()) records.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.trim()) records.push(cur);
+  return records;
+}
+
+const CHUNK_SIZE = 10;
 
 type Step = "select" | "preview" | "done";
 
@@ -25,7 +47,6 @@ export default function CsvImportModal({
   onClose,
   onImport,
   onImportRaw,
-  sampleCsvText,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("select");
@@ -36,6 +57,7 @@ export default function CsvImportModal({
   const [result, setResult] = useState<{ added: number; duplicates: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState(0); // 0~100
 
   if (!open) return null;
 
@@ -65,8 +87,26 @@ export default function CsvImportModal({
 
   async function handleConfirmImport() {
     setImporting(true);
+    setProgress(0);
+    setErrorMsg("");
     try {
-      const res = onImportRaw ? await onImportRaw(rawText) : onImport ? onImport(drafts) : { added: 0, duplicates: 0 };
+      let res = { added: 0, duplicates: 0 };
+      if (onImportRaw) {
+        // 서버에 한 번에 보내면 진행률을 알 수 없어서, 10줄씩 나눠 보내며 진행률을 표시한다.
+        // (줄 내용으로 중복을 확인하기 때문에 나눠 보내도 결과는 같다.)
+        const [header, ...rows] = splitCsvRecords(rawText);
+        const chunks: string[][] = [];
+        for (let i = 0; i < rows.length; i += CHUNK_SIZE) chunks.push(rows.slice(i, i + CHUNK_SIZE));
+        if (chunks.length === 0) chunks.push([]);
+        for (let i = 0; i < chunks.length; i++) {
+          const r = await onImportRaw([header, ...chunks[i]].join("\n"));
+          res = { added: res.added + r.added, duplicates: res.duplicates + r.duplicates };
+          setProgress(Math.round(((i + 1) / chunks.length) * 100));
+        }
+      } else if (onImport) {
+        res = onImport(drafts);
+        setProgress(100);
+      }
       setResult(res);
       setStep("done");
     } catch (err: any) {
@@ -89,12 +129,13 @@ export default function CsvImportModal({
   const totalKRW = drafts.reduce((sum, d) => sum + d.expense.amountKRW, 0);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-pop animate-fade-in md:rounded-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-pop animate-fade-in">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink-900">트리플 CSV 가져오기</h2>
+          <h2 className="text-lg font-bold text-ink-900">CSV 파일 가져오기</h2>
           <button
             onClick={() => {
+              if (importing) return;
               reset();
               onClose();
             }}
@@ -136,13 +177,6 @@ export default function CsvImportModal({
             />
             {errorMsg && <p className="text-xs font-medium text-red-500">{errorMsg}</p>}
 
-            <button
-              type="button"
-              onClick={() => processText(sampleCsvText, "sample-expenses.csv (실제 캡처 기반 5건)")}
-              className="w-full rounded-xl border border-brand-200 bg-brand-50 py-2.5 text-sm font-semibold text-brand-600"
-            >
-              샘플 CSV로 테스트하기
-            </button>
           </div>
         )}
 
@@ -176,9 +210,23 @@ export default function CsvImportModal({
               )}
             </div>
 
+            {importing && (
+              <div>
+                <div className="mb-1 flex justify-between text-xs font-medium text-ink-600">
+                  <span>가져오는 중...</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-ink-100">
+                  <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            )}
+            {errorMsg && <p className="text-xs font-medium text-red-500">{errorMsg}</p>}
+
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={importing}
                 onClick={reset}
                 className="rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-semibold text-ink-600"
               >
@@ -190,7 +238,7 @@ export default function CsvImportModal({
                 disabled={importing}
                 className="flex-1 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
               >
-                {importing ? "가져오는 중..." : `${drafts.length}건 가져오기`}
+                {importing ? `가져오는 중... ${progress}%` : `${drafts.length}건 가져오기`}
               </button>
             </div>
           </div>

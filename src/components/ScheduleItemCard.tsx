@@ -13,6 +13,8 @@ interface Props {
   onEdit: () => void;
   // 순서 편집 모드일 때만 쓰는 값들
   reorderMode?: boolean;
+  checked?: boolean; // 편집 모드에서 삭제용으로 선택됐는지
+  onToggleCheck?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMoveUp?: () => void;
@@ -27,6 +29,8 @@ export default function ScheduleItemCard({
   onClick,
   onEdit,
   reorderMode = false,
+  checked = false,
+  onToggleCheck,
   canMoveUp = false,
   canMoveDown = false,
   onMoveUp,
@@ -66,18 +70,36 @@ export default function ScheduleItemCard({
       <div
         role="button"
         tabIndex={0}
-        onClick={reorderMode ? undefined : onClick}
+        onClick={reorderMode ? onToggleCheck : onClick}
         onDoubleClick={reorderMode ? undefined : onEdit}
         onKeyDown={(e) => {
           if (!reorderMode && (e.key === "Enter" || e.key === " ")) onClick();
         }}
         className={`min-w-0 flex-1 rounded-2xl border bg-white px-3.5 py-3 text-left shadow-card transition
-                    ${reorderMode ? "cursor-default" : "cursor-pointer active:scale-[0.99]"}
-                    ${selected ? "border-brand-500 ring-2 ring-brand-100" : "border-ink-100"}`}
+                    cursor-pointer active:scale-[0.99]
+                    ${
+                      checked
+                        ? "border-red-400 ring-2 ring-red-100"
+                        : selected
+                        ? "border-brand-500 ring-2 ring-brand-100"
+                        : "border-ink-100"
+                    }`}
       >
         {/* items-center: 오른쪽 연필 버튼(28px)이 한 줄짜리 글자(20px)보다 높아서, 위쪽 정렬이면
             한 줄 메모가 박스 위쪽에 붙어 보였다. 글자와 버튼을 세로 가운데로 맞춘다. */}
         <div className="flex items-center justify-between gap-2">
+          {reorderMode && (
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                checked ? "border-red-500 bg-red-500 text-white" : "border-ink-300 text-transparent"
+              }`}
+              aria-label={checked ? "선택됨" : "선택 안 됨"}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             {isFlight ? (
               <>
@@ -130,7 +152,8 @@ export default function ScheduleItemCard({
           </div>
 
           {reorderMode ? (
-            <div className="flex shrink-0 flex-col gap-1">
+            // ▲▼를 눌렀을 때 카드 선택(체크)까지 같이 바뀌지 않도록 막는다.
+            <div className="flex shrink-0 flex-col gap-1" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={onMoveUp}
