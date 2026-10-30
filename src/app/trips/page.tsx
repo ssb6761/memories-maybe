@@ -195,6 +195,22 @@ export default function TripsPage() {
         </div>
       </div>
 
+      {isRemoteEnabled() && (
+        <Link
+          href="/import"
+          className="mt-4 flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3.5 active:scale-[0.99]"
+        >
+          <Emoji e="🧳" size={26} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-brand-700">트리플 일정 가져오기</span>
+            <span className="block text-xs text-brand-600/80">공유 링크만 붙여넣으면 날짜별 일정이 그대로 옮겨져요</span>
+          </span>
+          <span className="text-brand-400" aria-hidden>
+            ›
+          </span>
+        </Link>
+      )}
+
       <div className="mt-5 rounded-2xl border border-ink-100 bg-ink-100/40 p-4">
         {!isRemoteEnabled() ? (
           <p className="text-xs leading-relaxed text-ink-600">

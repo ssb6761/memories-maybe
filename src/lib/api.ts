@@ -108,6 +108,22 @@ export const api = {
     return request(`/api/trips/${shareId}/leave`, { method: "POST" });
   },
 
+  // 트리플 공유 링크의 일정 데이터(Apollo 캐시)를 서버가 대신 가져온다
+  fetchTriple(link: string): Promise<{ cache: any }> {
+    return request(`/api/import/triple?url=${encodeURIComponent(link)}`);
+  },
+
+  // 일정까지 들어 있는 새 여행 만들기 (트리플 가져오기)
+  importTrip(input: {
+    name: string;
+    destination?: string;
+    startDate: string;
+    endDate: string;
+    items: unknown[];
+  }): Promise<RemoteTripPayload> {
+    return request("/api/trips/import", { method: "POST", body: JSON.stringify(input) });
+  },
+
   createTrip(input: {
     name: string;
     destination?: string;

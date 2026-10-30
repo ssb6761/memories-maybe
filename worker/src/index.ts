@@ -289,6 +289,57 @@ export default {
         return json({ ok: true });
       }
 
+      // GET /api/import/triple?url=...  — 트리플 "일정 링크 공유하기" 페이지를 대신 열어서
+      // 일정 데이터(__NEXT_DATA__의 Apollo 캐시)만 돌려준다. 해석은 앱(src/lib/tripleImport.ts)이 한다.
+      // (브라우저에서는 다른 사이트를 직접 읽을 수 없어서 서버가 대신 가져온다.)
+      if (parts.length === 3 && parts[1] === "import" && parts[2] === "triple" && method === "GET") {
+        if (!user) return unauthorized();
+        const raw = url.searchParams.get("url") ?? "";
+        let target: URL;
+        try {
+          target = new URL(raw.trim());
+        } catch {
+          return json({ error: "링크 형식이 올바르지 않아요." }, 400);
+        }
+        const isTripleHost = (h: string) => h === "triple.guide" || h.endsWith(".triple.guide");
+        const isShortLink = (h: string) => h.endsWith(".onelink.me") || h.endsWith(".page.link");
+        if (target.protocol !== "https:" || (!isTripleHost(target.hostname) && !isShortLink(target.hostname))) {
+          return json({ error: "트리플 일정 공유 링크(triple.guide)만 가져올 수 있어요." }, 400);
+        }
+        const res = await fetch(target.toString(), {
+          redirect: "follow",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+          },
+        });
+        const finalHost = new URL(res.url || target.toString()).hostname;
+        if (!isTripleHost(finalHost)) {
+          return json({ error: "트리플 일정 페이지로 연결되지 않는 링크예요." }, 400);
+        }
+        if (!res.ok) {
+          return json(
+            { error: `트리플 페이지를 열지 못했어요 (${res.status}). 잠시 후 다시 시도하거나 'HTML 파일로 가져오기'를 써주세요.` },
+            502
+          );
+        }
+        const html = await res.text();
+        const m = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+        if (!m) {
+          return json({ error: "트리플 일정 데이터를 찾지 못했어요. 공개된 일정 링크인지 확인해주세요." }, 422);
+        }
+        let cache: any = null;
+        try {
+          cache = JSON.parse(m[1])?.props?.pageProps?.__APOLLO_CACHE__ ?? null;
+        } catch {
+          cache = null;
+        }
+        if (!cache) return json({ error: "트리플 일정 데이터를 읽지 못했어요." }, 422);
+        return json({ cache });
+      }
+
       if (parts[1] !== "trips") return notFound("지원하지 않는 경로예요.");
       // 여행 관련 API는 전부 로그인해야 쓸 수 있다.
       if (!user) return unauthorized();
@@ -305,6 +356,48 @@ export default {
         return json({
           trips: (rows.results ?? []).map((r: any) => ({ ...rowToTrip(r, []), role: r.member_role })),
         });
+      }
+
+      // POST /api/trips/import — 일정까지 한꺼번에 들어 있는 새 여행 만들기 (트리플 가져오기)
+      // { name, destination, startDate, endDate, items: [{ day, kind, name, category, time, memo, lat, lng, flight }] }
+      if (parts.length === 3 && parts[2] === "import" && method === "POST") {
+        const body = await request.json<any>();
+        const items: any[] = Array.isArray(body.items) ? body.items.slice(0, 1000) : [];
+        if (!body.startDate || !body.endDate) return json({ error: "여행 기간이 없어요." }, 400);
+        const tripId = newId("trip");
+        const shareId = newShareId();
+        const now = nowIso();
+        await db
+          .prepare(
+            `INSERT INTO trips (id, share_id, name, destination, start_date, end_date, cover_emoji, version, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?, ?)`
+          )
+          .bind(tripId, shareId, String(body.name ?? "트리플 여행").slice(0, 60), body.destination ?? null, body.startDate, body.endDate, now, now)
+          .run();
+        const orderByDay = new Map<number, number>();
+        const stmts = items.map((it) => {
+          const day = Math.max(1, Number(it.day) || 1);
+          const order = (orderByDay.get(day) ?? 0) + 1;
+          orderByDay.set(day, order);
+          const kind = it.kind === "memo" || it.kind === "flight" ? it.kind : "place";
+          return db
+            .prepare(
+              `INSERT INTO schedule_items (id, trip_id, day, order_num, time, name, category, kind, address, lat, lng, memo, reserved, cost, currency, transport_to_next, flight_json, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, NULL, ?, ?, ?)`
+            )
+            .bind(
+              newId("sch"), tripId, day, order, it.time ?? null, String(it.name ?? "장소").slice(0, 120),
+              it.category ?? "기타", kind, it.address ?? null,
+              typeof it.lat === "number" ? it.lat : null, typeof it.lng === "number" ? it.lng : null,
+              it.memo ?? null, kind === "flight" && it.flight ? JSON.stringify(it.flight) : null, now, now
+            );
+        });
+        // D1 batch는 한 번에 너무 많으면 실패할 수 있어 나눠서 넣는다.
+        for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50));
+        const tripRow = await getTripRowByShareId(db, shareId);
+        await joinTrip(db, tripRow, user);
+        const fresh = await getTripRowByShareId(db, shareId);
+        return json(await getFullTripPayload(db, fresh), 201);
       }
 
       // POST /api/trips  — 새 온라인 여행 생성 (만든 사람이 방장 멤버 + 첫 동행자)
