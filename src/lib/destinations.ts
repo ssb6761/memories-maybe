@@ -171,8 +171,26 @@ export function searchDestinations(query: string): Destination[] {
   );
 }
 
-// 저장된 여행지 문자열(도시 이름)로 국기/국가를 다시 찾아 화면에 보여줄 때 쓴다.
-export function findDestination(city?: string): Destination | undefined {
+// 여행지는 여러 개를 고를 수 있고 "오사카, 교토"처럼 쉼표로 이어서 저장한다.
+export function splitDestinations(value?: string): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export function joinDestinations(list: string[]): string {
+  return list.join(", ");
+}
+
+// 대표 여행지(첫 번째) — 지도 시작 위치와 기본 통화에 쓴다.
+export function primaryDestination(value?: string): string | undefined {
+  return splitDestinations(value)[0];
+}
+
+// 저장된 여행지 문자열로 국기/국가를 찾는다. 여러 개면 첫 번째(대표) 여행지 기준.
+export function findDestination(value?: string): Destination | undefined {
+  const city = primaryDestination(value);
   if (!city) return undefined;
   return ALL_DESTINATIONS.find((d) => d.city === city);
 }

@@ -5,7 +5,7 @@ import ExpensesView from "@/components/ExpensesView";
 
 // 예전(로그인 전) 이 기기에만 저장된 여행의 가계부. 순서 바꾸기는 온라인 여행에서만 된다.
 export default function ExpensesPage({ params }: { params: { tripId: string } }) {
-  const { trip, schedule, expenses, loaded, upsertExpense, deleteExpense, addTraveler, importExpenses } =
+  const { trip, schedule, expenses, loaded, upsertExpense, deleteExpense, updateTrip, importExpenses } =
     useTrip(params.tripId);
 
   if (!loaded || !trip) {
@@ -23,8 +23,8 @@ export default function ExpensesPage({ params }: { params: { tripId: string } })
       onDelete={(id) => {
         deleteExpense(id);
       }}
-      onAddTraveler={(name) => {
-        addTraveler(name);
+      onAddPerson={(name) => {
+        updateTrip({ extraPeople: [...(trip.extraPeople ?? []), name] });
       }}
       onImport={importExpenses}
     />

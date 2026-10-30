@@ -45,6 +45,7 @@ export function rowToTrip(row: any, travelers: any[]) {
     startDate: row.start_date,
     endDate: row.end_date,
     coverEmoji: row.cover_emoji ?? undefined,
+    extraPeople: safeJsonArray(row.extra_people),
     version: row.version,
     travelers: travelers.map(rowToTraveler),
     createdAt: row.created_at,

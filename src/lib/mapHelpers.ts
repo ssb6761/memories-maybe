@@ -2,22 +2,28 @@
 //  - fitMapToDestination: 여행지(도시/나라 이름)로 지도 영역을 맞춘다
 //  - createMapLabel: 핀 위에 작게 장소 이름을 띄운다(트리플처럼)
 //  - placeNumbers: 일정 목록 카드와 지도 핀에 같은 번호를 매긴다
-import { findDestination } from "./destinations";
+import { findDestination, primaryDestination } from "./destinations";
 
 export const SEOUL = { lat: 37.5665, lng: 126.978 };
 
 // 여행지 이름 → 지도 영역. 한 번 찾은 결과는 기억해서 다음엔 바로 쓴다.
 const viewportCache = new Map<string, any>();
 
-// 여행지로 지도를 맞춘다. 여행지가 없거나 찾지 못하면 서울로 보낸다.
+// 여행지로 지도를 맞춘다. 여행지가 없거나 찾지 못하면 서울로 보낸다. 다 맞추면 onDone을 부른다.
 // (구글 Cloud에서 Geocoding API가 사용 설정되어 있어야 여행지를 찾을 수 있다.)
-export function fitMapToDestination(map: any, destination?: string, isCancelled: () => boolean = () => false) {
+export function fitMapToDestination(
+  map: any,
+  destination?: string,
+  isCancelled: () => boolean = () => false,
+  onDone: () => void = () => {}
+) {
   const gmaps = window.google.maps;
   const goSeoul = () => {
     map.setCenter(SEOUL);
     map.setZoom(11);
+    onDone();
   };
-  const dest = destination?.trim();
+  const dest = primaryDestination(destination);
   if (!dest) {
     goSeoul();
     return;
@@ -25,6 +31,7 @@ export function fitMapToDestination(map: any, destination?: string, isCancelled:
   const cached = viewportCache.get(dest);
   if (cached) {
     applyView(map, cached);
+    onDone();
     return;
   }
   const known = findDestination(dest);
@@ -42,25 +49,26 @@ export function fitMapToDestination(map: any, destination?: string, isCancelled:
     const view = { center: geometry.location, viewport: geometry.viewport ?? geometry.bounds };
     viewportCache.set(dest, view);
     applyView(map, view);
+    onDone();
   });
 }
 
-// 찾은 영역이 너무 넓으면(나라·큰 섬 전체 등) 도시 정도 크기(줌 11)로 가운데만 맞춘다.
-// 도시면 그 도시 영역에 맞춘다.
+// 찾은 영역이 너무 넓으면(나라·큰 섬 전체 등) 도시 크기(줌 11)로 가운데만 맞추고, 도시면 그
+// 영역에 맞춘다. 한 번에 위치를 정해서 지도가 확대되며 움직이는 효과가 생기지 않게 한다.
 const CITY_ZOOM = 11;
 function applyView(map: any, view: { center: any; viewport?: any }) {
-  if (view.viewport) {
-    map.fitBounds(view.viewport);
-    window.google.maps.event.addListenerOnce(map, "idle", () => {
-      if ((map.getZoom() ?? CITY_ZOOM) < CITY_ZOOM) {
-        map.setCenter(view.center);
-        map.setZoom(CITY_ZOOM);
-      }
-    });
-  } else {
-    map.setCenter(view.center);
-    map.setZoom(CITY_ZOOM + 1);
+  const vp = view.viewport;
+  if (vp) {
+    const ne = vp.getNorthEast();
+    const sw = vp.getSouthWest();
+    const tooWide = Math.abs(ne.lat() - sw.lat()) > 0.5 || Math.abs(ne.lng() - sw.lng()) > 0.7;
+    if (!tooWide) {
+      map.fitBounds(vp, 0);
+      return;
+    }
   }
+  map.setCenter(view.center);
+  map.setZoom(CITY_ZOOM);
 }
 
 // 핀 위에 떠 있는 작은 이름표. OverlayView는 구글 스크립트가 로드된 뒤에만 쓸 수 있어서

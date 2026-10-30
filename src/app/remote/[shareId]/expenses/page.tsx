@@ -13,7 +13,7 @@ export default function RemoteExpensesPage({ params }: { params: { shareId: stri
     deleteExpense,
     deleteExpenses,
     reorderExpenses,
-    addTraveler,
+    updateTrip,
     importExpensesRaw,
   } = useRemoteTrip(params.shareId);
 
@@ -30,7 +30,7 @@ export default function RemoteExpensesPage({ params }: { params: { shareId: stri
       onDelete={(id) => deleteExpense(id)}
       onDeleteMany={(ids) => deleteExpenses(ids)}
       onReorder={(ids) => reorderExpenses(ids)}
-      onAddTraveler={(name) => addTraveler(name)}
+      onAddPerson={(name) => updateTrip({ extraPeople: [...(trip.extraPeople ?? []), name] })}
       onImportRaw={importExpensesRaw}
     />
   );

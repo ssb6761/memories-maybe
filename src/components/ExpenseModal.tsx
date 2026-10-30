@@ -30,8 +30,10 @@ interface Props {
     data: Partial<Expense> & { title: string; amount: number; currency: string }
   ) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
-  // "정산 인원 추가": 로그인하지 않은 사람도 이름만으로 정산에 넣을 수 있게 동행자로 추가한다.
-  onAddTraveler?: (name: string) => void | Promise<void>;
+  // 가계부에만 있는 정산 인원(동행자 아님)
+  extraPeople?: string[];
+  // "정산 인원 추가": 앱을 쓰지 않는 사람을 이름만으로 가계부 정산 인원에 넣는다(동행자에는 추가 안 함).
+  onAddPerson?: (name: string) => void | Promise<void>;
 }
 
 const CATEGORY_PRESETS = ["숙소", "항공", "교통", "관광", "식사", "카페", "쇼핑", "액티비티", "기타"];
@@ -83,7 +85,8 @@ export default function ExpenseModal({
   onClose,
   onSave,
   onDelete,
-  onAddTraveler,
+  extraPeople = [],
+  onAddPerson,
 }: Props) {
   const defaultCurrency = currencyForCountry(findDestination(destination)?.country) ?? "KRW";
 
@@ -99,9 +102,8 @@ export default function ExpenseModal({
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState("");
   const [scheduleItemId, setScheduleItemId] = useState("");
-  // 함께한 사람: 결제한 사람 / 함께(나눠 낼) 사람
+  // 결제한 사람
   const [paidBy, setPaidBy] = useState<string[]>([]);
-  const [splitWith, setSplitWith] = useState<string[]>([]);
   const { user } = useAuthUser();
   const [addPersonOpen, setAddPersonOpen] = useState(false);
   const [newPerson, setNewPerson] = useState("");
@@ -132,7 +134,7 @@ export default function ExpenseModal({
     // 새 비용: 나(로그인한 사람)가 결제, 함께는 나만 체크된 상태로 시작
     const me = travelers.find((t) => user && t.userId === user.id) ?? travelers[0];
     setPaidBy(initial?.paidBy ?? (me ? [me.name] : []));
-    setSplitWith(initial?.splitWith ?? (me ? [me.name] : []));
+    // (함께 항목은 화면에서 뺐다. 저장할 때 결제한 사람으로 채운다.)
     setMenuOpen(false);
     setSaveError("");
     autoRateRef.current = !initial;
@@ -149,16 +151,8 @@ export default function ExpenseModal({
   }, [open]);
 
   const totalDays = startDate && endDate ? Math.max(1, daysBetween(startDate, endDate)) : 0;
-  // 환율 기준일: 고른 DAY의 실제 날짜. "여행준비"(DAY 없음)는 오늘이지만, 이미 지난 여행이면
-  // 여행 시작일 환율을 쓴다 (지난 여행을 기록할 때 오늘 환율이 들어가지 않도록).
-  const now = new Date();
-  const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const expenseDate =
-    day && startDate
-      ? addDays(startDate, day - 1)
-      : startDate && startDate < todayIso
-      ? startDate
-      : undefined;
+  // 환율 기준일: 고른 DAY의 실제 날짜. "여행준비"는 DAY 1 날짜. (아직 오지 않은 날짜는 최신 환율)
+  const expenseDate = startDate ? addDays(startDate, (day ?? 1) - 1) : undefined;
 
   useEffect(() => {
     if (!open || !autoRateRef.current) return;
@@ -191,7 +185,25 @@ export default function ExpenseModal({
   if (!open) return null;
 
   const canSave =
-    !!title.trim() && amountNumber > 0 && rateStatus !== "loading" && paidBy.length > 0 && splitWith.length > 0;
+    !!title.trim() && amountNumber > 0 && rateStatus !== "loading" && paidBy.length > 0;
+
+  // 고를 수 있는 사람: 동행자 + 가계부 정산 인원 + (예전 기록에만 남아 있는 이름)
+  const people = (() => {
+    const list: { key: string; name: string; color: string; isMe: boolean }[] = travelers.map((t) => ({
+      key: t.id,
+      name: t.name,
+      color: t.color,
+      isMe: !!user && t.userId === user.id,
+    }));
+    const names = new Set(list.map((p) => p.name));
+    [...extraPeople, ...paidBy].forEach((n) => {
+      if (!names.has(n)) {
+        names.add(n);
+        list.push({ key: `extra:${n}`, name: n, color: "#9ca3af", isMe: false });
+      }
+    });
+    return list;
+  })();
 
   function toggleName(list: string[], setList: (v: string[]) => void, name: string) {
     setList(list.includes(name) ? list.filter((n) => n !== name) : [...list, name]);
@@ -237,8 +249,9 @@ export default function ExpenseModal({
         privateOnly: false,
         paidBy,
         paidByCount: Math.max(1, paidBy.length),
-        splitWith,
-        splitCount: Math.max(1, splitWith.length),
+        // "함께" 항목을 없앴으므로 각자 결제한 금액이 곧 그 사람의 지출이다.
+        splitWith: paidBy,
+        splitCount: Math.max(1, paidBy.length),
         source: initial?.source ?? "manual",
       });
       onClose();
@@ -371,14 +384,15 @@ export default function ExpenseModal({
               )}
             </div>
             {currency !== "KRW" && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-400">
+              <div className="mt-1.5 text-xs text-ink-400">
                 {rateStatus === "error" ? (
-                  <span className="text-red-500">환율을 불러오지 못했어요. 직접 입력해주세요.</span>
+                  <p className="text-red-500">환율을 불러오지 못했어요. 직접 입력해주세요.</p>
                 ) : rateDate ? (
-                  <span>{shortDate(rateDate)} 고시 환율</span>
+                  <p>{shortDate(rateDate)} 고시 환율</p>
                 ) : (
-                  <span>{initial ? "저장된 환율" : "직접 입력한 환율"}</span>
+                  <p>{initial ? "저장된 환율" : "직접 입력한 환율"}</p>
                 )}
+                <div className="mt-1 flex flex-wrap gap-x-3">
                 {!editingRate && (rateStatus === "error" || !rateDate) && (
                   <button
                     type="button"
@@ -403,6 +417,7 @@ export default function ExpenseModal({
                     환율 직접 입력
                   </button>
                 )}
+                </div>
               </div>
             )}
             {editingRate && (
@@ -495,27 +510,36 @@ export default function ExpenseModal({
               </div>
             </div>
 
-            {/* 함께한 사람: 누가 결제했고(결제), 누구 몫인지(함께) 고른다. 정산에 쓰인다. */}
+            {/* 결제한 사람: 동행자 + 가계부 정산 인원 중에서 고른다. 정산에 쓰인다. */}
             <div>
               <div className="mb-2 flex items-center">
-                <span className="flex-1 text-[13px] font-medium text-ink-400">함께한 사람{required}</span>
-                <span className="w-12 text-center text-[13px] font-medium text-ink-400">결제</span>
-                <span className="w-12 text-center text-[13px] font-medium text-ink-400">함께</span>
+                <span className="flex-1 text-[13px] font-medium text-ink-400">결제한 사람{required}</span>
               </div>
               <div className="space-y-1">
-                {travelers.map((t) => {
-                  const isMe = !!user && t.userId === user.id;
-                  const check = (on: boolean, onClick: () => void, label: string) => (
+                {people.map((p) => {
+                  const on = paidBy.includes(p.name);
+                  return (
                     <button
                       type="button"
-                      onClick={onClick}
-                      aria-label={label}
+                      key={p.key}
+                      onClick={() => toggleName(paidBy, setPaidBy, p.name)}
                       aria-pressed={on}
-                      className="flex w-12 justify-center"
+                      className="flex w-full items-center py-1.5 text-left"
                     >
                       <span
-                        className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                          on ? "bg-brand-500 text-white" : "bg-ink-100 text-transparent"
+                        style={{ backgroundColor: p.color }}
+                        className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                      >
+                        {p.name.slice(0, 1)}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-ink-900">
+                        {p.isMe ? "(나) " : ""}
+                        {p.name}
+                      </span>
+                      {/* 선택 안 됐을 때도 흰 바탕에 회색 체크로 보여서 누를 수 있는 칸임을 알 수 있게 */}
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${
+                          on ? "border-brand-500 bg-brand-500 text-white" : "border-ink-200 bg-white text-ink-300"
                         }`}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -524,28 +548,10 @@ export default function ExpenseModal({
                       </span>
                     </button>
                   );
-                  return (
-                    <div key={t.id} className="flex items-center py-1.5">
-                      <span
-                        style={{ backgroundColor: t.color }}
-                        className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                      >
-                        {t.name.slice(0, 1)}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-ink-900">
-                        {isMe ? "(나) " : ""}
-                        {t.name}
-                      </span>
-                      {check(paidBy.includes(t.name), () => toggleName(paidBy, setPaidBy, t.name), `${t.name} 결제`)}
-                      {check(splitWith.includes(t.name), () => toggleName(splitWith, setSplitWith, t.name), `${t.name} 함께`)}
-                    </div>
-                  );
                 })}
               </div>
-              {(paidBy.length === 0 || splitWith.length === 0) && (
-                <p className="mt-1 text-xs text-red-500">결제한 사람과 함께한 사람을 한 명 이상 골라주세요.</p>
-              )}
-              {onAddTraveler && (
+              {paidBy.length === 0 && <p className="mt-1 text-xs text-red-500">결제한 사람을 한 명 이상 골라주세요.</p>}
+              {onAddPerson && (
                 <button
                   type="button"
                   onClick={() => {
@@ -584,7 +590,9 @@ export default function ExpenseModal({
         >
           <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-1 text-base font-bold text-ink-900">정산 인원 추가</h3>
-            <p className="mb-3 text-xs text-ink-500">앱을 쓰지 않는 사람도 이름만으로 정산에 넣을 수 있어요.</p>
+            <p className="mb-3 text-xs text-ink-500">
+              앱을 쓰지 않는 사람도 이름만으로 정산에 넣을 수 있어요. 여행 동행자에는 추가되지 않아요.
+            </p>
             <ClearableInput
               autoFocus
               value={newPerson}
@@ -608,15 +616,15 @@ export default function ExpenseModal({
                 disabled={!newPerson.trim() || addingPerson}
                 onClick={async () => {
                   const name = newPerson.trim();
-                  if (travelers.some((t) => t.name === name)) {
+                  if (people.some((p) => p.name === name)) {
                     setAddPersonError("이미 있는 이름이에요.");
                     return;
                   }
                   setAddingPerson(true);
                   setAddPersonError("");
                   try {
-                    await onAddTraveler?.(name);
-                    setSplitWith((list) => (list.includes(name) ? list : [...list, name]));
+                    await onAddPerson?.(name);
+                    setPaidBy((list) => (list.includes(name) ? list : [...list, name]));
                     setAddPersonOpen(false);
                   } catch (err: any) {
                     setAddPersonError(err?.message ?? "추가하지 못했어요.");

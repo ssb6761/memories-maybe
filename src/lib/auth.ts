@@ -98,6 +98,11 @@ export function useAuthUser() {
   return { user, loading: user === undefined };
 }
 
+// 이름을 바꾼 뒤 화면들이 새 이름을 쓰도록 기억해둔 사용자 정보를 갱신한다.
+export function setCachedUser(user: AuthUser) {
+  cachedUser = user;
+}
+
 export async function logout() {
   try {
     const { api } = await import("./api");

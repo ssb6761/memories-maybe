@@ -58,6 +58,9 @@ const REQUIRED_TABLES = [
 ];
 
 const REQUIRED_COLUMNS: Record<string, Record<string, string>> = {
+  trips: {
+    extra_people: "TEXT", // 가계부에만 쓰는 정산 인원 이름들(JSON 배열). 동행자(멤버)와 별개.
+  },
   travelers: {
     user_id: "TEXT", // 로그인한 멤버와 연결된 동행자
   },
@@ -197,6 +200,89 @@ export default {
         return json({ user });
       }
 
+      // PATCH /api/me  { name } — 이름 바꾸기. 내가 동행자로 들어가 있는 여행들의 이름과
+      // 가계부(결제한 사람/함께) 기록의 이름도 같이 바꾼다.
+      if (parts.length === 2 && parts[1] === "me" && method === "PATCH") {
+        if (!user) return unauthorized();
+        const body = await request.json<any>();
+        const newName = String(body.name ?? "").trim().slice(0, 20);
+        if (!newName) return json({ error: "이름을 입력해주세요." }, 400);
+        await db.prepare(`UPDATE users SET name = ? WHERE id = ?`).bind(newName, user.id).run();
+        const linked = await db.prepare(`SELECT * FROM travelers WHERE user_id = ?`).bind(user.id).all<any>();
+        for (const t of linked.results ?? []) {
+          if (t.name === newName) continue;
+          const taken = await db
+            .prepare(`SELECT id FROM travelers WHERE trip_id = ? AND name = ? AND id != ?`)
+            .bind(t.trip_id, newName, t.id)
+            .first<any>();
+          if (taken) continue; // 같은 여행에 같은 이름이 이미 있으면 그 여행에서는 바꾸지 않는다
+          await db.prepare(`UPDATE travelers SET name = ? WHERE id = ?`).bind(newName, t.id).run();
+          const exps = await db
+            .prepare(`SELECT id, paid_by, split_with FROM expenses WHERE trip_id = ?`)
+            .bind(t.trip_id)
+            .all<any>();
+          for (const e of exps.results ?? []) {
+            const swap = (raw: string) => {
+              try {
+                const arr: string[] = JSON.parse(raw || "[]");
+                return JSON.stringify(arr.map((n) => (n === t.name ? newName : n)));
+              } catch {
+                return raw;
+              }
+            };
+            const paid = swap(e.paid_by);
+            const split = swap(e.split_with);
+            if (paid !== e.paid_by || split !== e.split_with) {
+              await db.prepare(`UPDATE expenses SET paid_by = ?, split_with = ? WHERE id = ?`).bind(paid, split, e.id).run();
+            }
+          }
+          await bumpTripVersion(db, t.trip_id);
+        }
+        return json({ user: { ...user, name: newName } });
+      }
+
+      // DELETE /api/me — 회원 탈퇴. 혼자만 쓰던 여행은 통째로 지우고, 다른 멤버가 있는 여행은
+      // 방장을 다음 멤버에게 넘긴 뒤 나만 빠진다(내가 쓴 가계부 기록은 남는다).
+      if (parts.length === 2 && parts[1] === "me" && method === "DELETE") {
+        if (!user) return unauthorized();
+        const memberships = await db.prepare(`SELECT * FROM trip_members WHERE user_id = ?`).bind(user.id).all<any>();
+        for (const m of memberships.results ?? []) {
+          const others = await db
+            .prepare(`SELECT * FROM trip_members WHERE trip_id = ? AND user_id != ? ORDER BY joined_at ASC`)
+            .bind(m.trip_id, user.id)
+            .all<any>();
+          const rest = others.results ?? [];
+          if (rest.length === 0) {
+            await db.batch([
+              db.prepare(`DELETE FROM expenses WHERE trip_id = ?`).bind(m.trip_id),
+              db.prepare(`DELETE FROM schedule_items WHERE trip_id = ?`).bind(m.trip_id),
+              db.prepare(`DELETE FROM travelers WHERE trip_id = ?`).bind(m.trip_id),
+              db.prepare(`DELETE FROM trip_members WHERE trip_id = ?`).bind(m.trip_id),
+              db.prepare(`DELETE FROM trips WHERE id = ?`).bind(m.trip_id),
+            ]);
+            continue;
+          }
+          if (m.role === "owner") {
+            const next = rest[0];
+            await db.batch([
+              db.prepare(`UPDATE trip_members SET role = 'owner' WHERE trip_id = ? AND user_id = ?`).bind(m.trip_id, next.user_id),
+              db.prepare(`UPDATE travelers SET is_owner = 0 WHERE trip_id = ?`).bind(m.trip_id),
+              db.prepare(`UPDATE travelers SET is_owner = 1 WHERE trip_id = ? AND user_id = ?`).bind(m.trip_id, next.user_id),
+            ]);
+          }
+          await db.batch([
+            db.prepare(`DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?`).bind(m.trip_id, user.id),
+            db.prepare(`UPDATE travelers SET user_id = NULL WHERE trip_id = ? AND user_id = ?`).bind(m.trip_id, user.id),
+          ]);
+          await bumpTripVersion(db, m.trip_id);
+        }
+        await db.batch([
+          db.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(user.id),
+          db.prepare(`DELETE FROM users WHERE id = ?`).bind(user.id),
+        ]);
+        return json({ ok: true });
+      }
+
       // POST /api/logout
       if (parts.length === 2 && parts[1] === "logout" && method === "POST") {
         await deleteSession(request, db);
@@ -306,10 +392,15 @@ export default {
             .prepare(
               `UPDATE trips SET name = COALESCE(?, name), destination = COALESCE(?, destination),
                start_date = COALESCE(?, start_date), end_date = COALESCE(?, end_date),
-               cover_emoji = COALESCE(?, cover_emoji), version = version + 1, updated_at = ?
+               cover_emoji = COALESCE(?, cover_emoji), extra_people = COALESCE(?, extra_people),
+               version = version + 1, updated_at = ?
                WHERE id = ?`
             )
-            .bind(body.name ?? null, body.destination ?? null, body.startDate ?? null, body.endDate ?? null, body.coverEmoji ?? null, nowIso(), tripId)
+            .bind(
+              body.name ?? null, body.destination ?? null, body.startDate ?? null, body.endDate ?? null,
+              body.coverEmoji ?? null, Array.isArray(body.extraPeople) ? JSON.stringify(body.extraPeople) : null,
+              nowIso(), tripId
+            )
             .run();
           const fresh = await getTripRowByShareId(db, shareId);
           return json(await getFullTripPayload(db, fresh));

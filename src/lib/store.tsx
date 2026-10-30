@@ -13,12 +13,7 @@ import { Expense, ScheduleItem, Trip, TripData, Traveler } from "./types";
 import { createId, createShareId } from "./id";
 import {
   SAMPLE_TRIP_ID,
-  buildSampleExpenses,
-  sampleSchedule,
-  sampleTrip,
   OKINAWA_TRIP_ID,
-  buildOkinawaExpenses,
-  okinawaTrip,
 } from "./sampleData";
 import { ImportedExpenseDraft } from "./csv";
 
@@ -193,21 +188,18 @@ function reducer(state: StoreState, action: Action): StoreState {
   }
 }
 
+// 예전 버전에서 처음 실행할 때 넣어주던 샘플 여행(발리·오키나와)은 더 이상 만들지 않고,
+// 이미 저장돼 있으면 지운다.
+const REMOVED_SAMPLE_IDS = [SAMPLE_TRIP_ID, OKINAWA_TRIP_ID];
+
 function buildDefaultTrips(): Record<string, TripData> {
-  return {
-    [SAMPLE_TRIP_ID]: {
-      trip: sampleTrip,
-      schedule: sampleSchedule,
-      expenses: buildSampleExpenses(),
-    },
-    // 실제로 업로드해주신 트리플 CSV(오키나와 여행, 39건)를 그대로 반영한 두 번째 샘플.
-    // 일정 캡처가 없었기 때문에 일정은 비어있고 가계부만 실데이터로 채워져 있다.
-    [OKINAWA_TRIP_ID]: {
-      trip: okinawaTrip,
-      schedule: [],
-      expenses: buildOkinawaExpenses(),
-    },
-  };
+  return {};
+}
+
+function withoutSamples(trips: Record<string, TripData>): Record<string, TripData> {
+  const next = { ...trips };
+  REMOVED_SAMPLE_IDS.forEach((id) => delete next[id]);
+  return next;
 }
 
 interface StoreContextValue {
@@ -244,7 +236,7 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
       }
       if (raw) {
         const parsed = JSON.parse(raw) as Record<string, TripData>;
-        dispatch({ type: "HYDRATE", payload: parsed });
+        dispatch({ type: "HYDRATE", payload: withoutSamples(parsed) });
       } else {
         dispatch({ type: "HYDRATE", payload: buildDefaultTrips() });
       }

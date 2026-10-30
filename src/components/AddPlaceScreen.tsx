@@ -98,6 +98,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
   const [saveError, setSaveError] = useState("");
 
   const browseMapRef = useRef<HTMLDivElement>(null);
+  const [browseReady, setBrowseReady] = useState(false);
   const mapPickRef = useRef<HTMLDivElement>(null);
   const mapPickInstanceRef = useRef<any>(null);
   const geocoderRef = useRef<any>(null);
@@ -259,6 +260,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
   const savedKey = savedPlaces.map((p) => `${p.id}:${p.lat},${p.lng}:${p.number}`).join("|");
   useEffect(() => {
     if (!open || step !== "browse" || !isGoogleMapsConfigured()) return;
+    setBrowseReady(false);
     let cancelled = false;
     let label: MapLabel | null = null;
     loadGoogleMapsScript().then(() => {
@@ -312,17 +314,27 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
         });
       });
 
-      if (keepView) return;
+      // 위치를 다 잡은 뒤에 지도를 보여준다(서울에서 날아가는 장면이 보이지 않게).
+      const show = () => {
+        if (!cancelled) gmaps.event.addListenerOnce(map, "idle", () => setBrowseReady(true));
+      };
+
+      if (keepView) {
+        show();
+        return;
+      }
 
       if (savedPlaces.length === 1) {
         map.setCenter({ lat: savedPlaces[0].lat, lng: savedPlaces[0].lng });
         map.setZoom(15);
+        show();
       } else if (savedPlaces.length > 1) {
         const bounds = new gmaps.LatLngBounds();
         savedPlaces.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
         map.fitBounds(bounds, 48);
+        show();
       } else {
-        fitMapToDestination(map, destination, () => cancelled);
+        fitMapToDestination(map, destination, () => cancelled, show);
       }
     });
     return () => {
@@ -468,7 +480,12 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       {step === "browse" && (
         <div className="relative flex-1">
           {isGoogleMapsConfigured() ? (
-            <div ref={browseMapRef} className="absolute inset-0" />
+            <div className="absolute inset-0 bg-ink-100">
+              <div
+                ref={browseMapRef}
+                className={`absolute inset-0 transition-opacity duration-150 ${browseReady ? "opacity-100" : "opacity-0"}`}
+              />
+            </div>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-ink-50 px-6 text-center text-sm text-ink-400">
               구글 지도 검색이 설정되어 있지 않아 지도를 표시할 수 없어요. 검색창에 검색어를

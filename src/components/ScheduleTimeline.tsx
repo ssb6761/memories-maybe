@@ -146,8 +146,12 @@ export default function ScheduleTimeline({
       const ids = [...checked];
       if (onDeleteMany) await onDeleteMany(ids);
       else for (const id of ids) await onDelete(id);
-      setDraftOrder((list) => list.filter((id) => !checked.has(id)));
+      // 삭제하면 바로 편집을 끝낸다. 그 전에 바꿔둔 순서가 있으면 같이 저장한다.
+      const remaining = displayItems.map((i) => i.id).filter((id) => !checked.has(id));
+      const before = items.map((i) => i.id).filter((id) => !checked.has(id));
+      if (remaining.some((id, i) => before[i] !== id)) await onReorder(day, remaining);
       setChecked(new Set());
+      setReorderMode(false);
     } catch (err: any) {
       setOrderError(err?.message ?? "삭제하지 못했어요. 다시 시도해주세요.");
     } finally {
@@ -198,9 +202,35 @@ export default function ScheduleTimeline({
       )}
 
       {reorderMode && (
-        <p className="mb-3 rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
-          ▲▼ 버튼으로 순서를 바꾸고 "완료"를 눌러 저장하세요. 일정을 눌러 선택하면 한꺼번에 삭제할 수 있어요.
-        </p>
+        <div className="mb-3">
+          <p className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
+            ▲▼ 버튼으로 순서를 바꾸고 "완료"를 눌러 저장하세요. 일정을 눌러 선택하면 한꺼번에 삭제할 수 있어요.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              setChecked(
+                displayItems.length > 0 && displayItems.every((i) => checked.has(i.id))
+                  ? new Set()
+                  : new Set(displayItems.map((i) => i.id))
+              )
+            }
+            className="mt-2 flex items-center gap-2 px-1 text-sm font-medium text-ink-600"
+          >
+            <span
+              className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                displayItems.length > 0 && displayItems.every((i) => checked.has(i.id))
+                  ? "border-red-500 bg-red-500 text-white"
+                  : "border-ink-300 bg-white text-ink-300"
+              }`}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            전체 선택
+          </button>
+        </div>
       )}
 
       <div className="relative">
@@ -259,18 +289,18 @@ export default function ScheduleTimeline({
             선택 삭제{checked.size > 0 ? ` (${checked.size})` : ""}
           </button>
           <button
-            onClick={() => setReorderMode(false)}
-            disabled={savingOrder}
-            className="rounded-2xl border border-ink-200 px-4 py-3 text-sm font-semibold text-ink-600 disabled:opacity-50"
-          >
-            취소
-          </button>
-          <button
             onClick={finishReorder}
             disabled={savingOrder}
             className="flex-1 rounded-2xl bg-brand-600 py-3 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
           >
             {savingOrder ? "저장 중..." : "완료"}
+          </button>
+          <button
+            onClick={() => setReorderMode(false)}
+            disabled={savingOrder}
+            className="rounded-2xl border border-ink-200 px-4 py-3 text-sm font-semibold text-ink-600 disabled:opacity-50"
+          >
+            취소
           </button>
         </div>
       ) : (

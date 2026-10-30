@@ -51,6 +51,8 @@ export interface Trip {
   endDate: string; // ISO yyyy-mm-dd
   coverEmoji?: string;
   travelers: Traveler[];
+  // 가계부에만 쓰는 정산 인원(앱을 쓰지 않는 사람). 동행자(멤버)와 별개로 이름만 저장한다.
+  extraPeople?: string[];
   createdAt: string;
   updatedAt: string;
 }

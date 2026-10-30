@@ -1,34 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  DESTINATION_REGIONS,
-  searchDestinations,
-  type Destination,
-} from "@/lib/destinations";
+import { DESTINATION_REGIONS, searchDestinations, type Destination } from "@/lib/destinations";
 
 interface Props {
   open: boolean;
-  selected?: string;
+  selected: string[];
   onClose: () => void;
-  onSelect: (city: string) => void;
+  onConfirm: (cities: string[]) => void;
 }
 
-// 여행 만들기에서 "여행지"를 누르면 뜨는 전체 화면 선택기.
-// 맨 위 검색창 → 지역 탭 + 도시 목록 순서.
-// 목록에 없는 곳은 검색어를 그대로 여행지로 쓸 수 있게 "직접 입력" 버튼을 보여준다.
-export default function DestinationPicker({ open, selected, onClose, onSelect }: Props) {
+// 여행 만들기 / 여행관리에서 "여행지"를 누르면 뜨는 전체 화면 선택기.
+// 여러 도시를 눌러서 고르고(다시 누르면 해제) 아래 "선택 완료"로 저장한다.
+// 첫 번째로 고른 도시가 대표 여행지(지도 시작 위치·기본 통화)가 된다.
+export default function DestinationPicker({ open, selected, onClose, onConfirm }: Props) {
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState(DESTINATION_REGIONS[0].region);
+  const [picked, setPicked] = useState<string[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setQuery("");
     setRegion(DESTINATION_REGIONS[0].region);
+    setPicked(selected);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // 열려 있는 동안 뒤 페이지가 같이 스크롤되지 않게 막는다.
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -45,18 +43,17 @@ export default function DestinationPicker({ open, selected, onClose, onSelect }:
   const regionCities = DESTINATION_REGIONS.find((r) => r.region === region)?.cities ?? [];
   const exactMatch = results.some((d) => d.city === trimmed);
 
-  function pick(city: string) {
-    onSelect(city);
-    onClose();
+  function toggle(city: string) {
+    setPicked((list) => (list.includes(city) ? list.filter((c) => c !== city) : [...list, city]));
   }
 
   function renderCityRow(d: Destination) {
-    const isSelected = selected === d.city;
+    const on = picked.includes(d.city);
     return (
       <button
         key={`${d.city}-${d.country}`}
         type="button"
-        onClick={() => pick(d.city)}
+        onClick={() => toggle(d.city)}
         className="flex w-full items-center gap-3 py-3.5 text-left active:bg-ink-50"
       >
         <span className="text-2xl leading-none">{d.flag}</span>
@@ -66,7 +63,15 @@ export default function DestinationPicker({ open, selected, onClose, onSelect }:
             {d.country} · {d.en.split(" ")[0]}
           </span>
         </span>
-        {isSelected && <span className="text-sm font-bold text-brand-600">✓</span>}
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+            on ? "border-brand-600 bg-brand-600 text-white" : "border-ink-200 bg-white text-ink-300"
+          }`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
       </button>
     );
   }
@@ -81,6 +86,7 @@ export default function DestinationPicker({ open, selected, onClose, onSelect }:
             </svg>
           </button>
           <h1 className="text-base font-bold text-ink-900">어디로 떠나세요?</h1>
+          <span className="ml-auto text-xs text-ink-400">여러 곳 선택 가능</span>
         </div>
 
         <div className="px-4 pb-3">
@@ -105,21 +111,22 @@ export default function DestinationPicker({ open, selected, onClose, onSelect }:
 
         {trimmed ? (
           <div className="flex-1 overflow-y-auto px-4">
-            {!exactMatch && (
+            {!exactMatch && !picked.includes(trimmed) && (
               <button
                 type="button"
-                onClick={() => pick(trimmed)}
+                onClick={() => {
+                  toggle(trimmed);
+                  setQuery("");
+                }}
                 className="my-2 flex w-full items-center justify-between rounded-xl bg-brand-50 px-4 py-3 text-left text-sm font-semibold text-brand-700"
               >
                 <span>
-                  ‘{trimmed}’{results.length === 0 ? " — 목록에 없어요. 이대로 여행지로 쓰기" : " 그대로 쓰기"}
+                  ‘{trimmed}’{results.length === 0 ? " — 목록에 없어요. 이대로 추가하기" : " 그대로 추가하기"}
                 </span>
-                <span aria-hidden>›</span>
+                <span aria-hidden>+</span>
               </button>
             )}
-            <div className="divide-y divide-ink-100">
-              {results.map((d) => renderCityRow(d))}
-            </div>
+            <div className="divide-y divide-ink-100">{results.map((d) => renderCityRow(d))}</div>
           </div>
         ) : (
           <>
@@ -141,13 +148,41 @@ export default function DestinationPicker({ open, selected, onClose, onSelect }:
               ))}
             </div>
 
-            <div ref={listRef} className="flex-1 overflow-y-auto px-4 pb-8">
-              <div className="divide-y divide-ink-100">
-                {regionCities.map((d) => renderCityRow(d))}
-              </div>
+            <div ref={listRef} className="flex-1 overflow-y-auto px-4 pb-4">
+              <div className="divide-y divide-ink-100">{regionCities.map((d) => renderCityRow(d))}</div>
             </div>
           </>
         )}
+
+        {/* 고른 여행지 + 선택 완료 */}
+        <div className="border-t border-ink-100 px-4 pb-10 pt-3">
+          {picked.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {picked.map((c, i) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggle(c)}
+                  className="flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700"
+                >
+                  {i === 0 && <span className="text-[10px] text-brand-500">대표</span>}
+                  {c} ✕
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={picked.length === 0}
+            onClick={() => {
+              onConfirm(picked);
+              onClose();
+            }}
+            className="w-full rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {picked.length > 0 ? `선택 완료 (${picked.length})` : "여행지를 골라주세요"}
+          </button>
+        </div>
       </div>
     </div>
   );

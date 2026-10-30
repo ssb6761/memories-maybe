@@ -7,7 +7,7 @@ import { api, isRemoteEnabled, type MyTrip } from "@/lib/api";
 import Link from "next/link";
 import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
-import { findDestination } from "@/lib/destinations";
+import { findDestination, joinDestinations, primaryDestination, splitDestinations } from "@/lib/destinations";
 import ClearableInput from "@/components/ClearableInput";
 
 function formatRange(start: string, end: string) {
@@ -285,11 +285,13 @@ export default function TripsPage() {
 
       <DestinationPicker
         open={destinationPickerOpen}
-        selected={onlineDestination}
+        selected={splitDestinations(onlineDestination)}
         onClose={() => setDestinationPickerOpen(false)}
-        onSelect={(city) => {
-          const prevCity = onlineDestination;
-          setOnlineDestination(city);
+        onConfirm={(cities) => {
+          // 여행 이름에는 대표(첫 번째) 여행지를 쓴다.
+          const prevCity = primaryDestination(onlineDestination);
+          const city = cities[0];
+          setOnlineDestination(joinDestinations(cities));
           setOnlineError("");
           // 여행 이름을 아직 안 정했으면 "오사카 여행"처럼 자동으로 채워준다(수정 가능).
           // 여행지를 바꾸면 이름 속의 예전 여행지도 새 여행지로 바꾼다

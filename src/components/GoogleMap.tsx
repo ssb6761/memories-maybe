@@ -23,6 +23,8 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
   const polylineRef = useRef<any>(null);
   const labelRef = useRef<MapLabel | null>(null);
   const [ready, setReady] = useState(false);
+  // 처음 위치를 다 잡기 전엔 지도를 숨겨둔다. 서울에서 여행지로 날아가는 장면이 보이지 않게.
+  const [positioned, setPositioned] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,15 +64,20 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
     if (!ready || !mapRef.current) return;
     const gmaps = window.google.maps;
     let cancelled = false;
+    const show = () => {
+      if (!cancelled) gmaps.event.addListenerOnce(mapRef.current, "idle", () => setPositioned(true));
+    };
     if (withCoords.length === 1) {
       mapRef.current.setCenter({ lat: withCoords[0].lat!, lng: withCoords[0].lng! });
       mapRef.current.setZoom(15);
+      show();
     } else if (withCoords.length > 1) {
       const bounds = new gmaps.LatLngBounds();
       withCoords.forEach((i) => bounds.extend({ lat: i.lat!, lng: i.lng! }));
       mapRef.current.fitBounds(bounds, 48);
+      show();
     } else {
-      fitMapToDestination(mapRef.current, destination, () => cancelled);
+      fitMapToDestination(mapRef.current, destination, () => cancelled, show);
     }
     return () => {
       cancelled = true;
@@ -143,5 +150,12 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
     );
   }
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return (
+    <div className="h-full w-full bg-ink-100">
+      <div
+        ref={containerRef}
+        className={`h-full w-full transition-opacity duration-150 ${positioned ? "opacity-100" : "opacity-0"}`}
+      />
+    </div>
+  );
 }

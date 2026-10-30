@@ -22,7 +22,8 @@ interface Props {
   onDelete: (id: string) => void | Promise<void>;
   onDeleteMany?: (ids: string[]) => void | Promise<void>;
   onReorder?: (orderedIds: string[]) => void | Promise<void>;
-  onAddTraveler?: (name: string) => void | Promise<void>;
+  // 가계부 정산 인원 추가 (동행자와 별개로 이름만 저장)
+  onAddPerson?: (name: string) => void | Promise<void>;
   onImport?: (drafts: ImportedExpenseDraft[]) => { added: number; duplicates: number };
   onImportRaw?: (csvText: string) => Promise<{ added: number; duplicates: number }>;
 }
@@ -54,7 +55,7 @@ export default function ExpensesView({
   onDelete,
   onDeleteMany,
   onReorder,
-  onAddTraveler,
+  onAddPerson,
   onImport,
   onImportRaw,
 }: Props) {
@@ -103,7 +104,20 @@ export default function ExpensesView({
   }, [visible]);
 
   const grandTotalKRW = visible.reduce((sum, e) => sum + e.amountKRW, 0);
-  const settlement = useMemo(() => calculateSettlement(trip.travelers, expenses), [trip.travelers, expenses]);
+  // 정산 대상 = 동행자 + 가계부 정산 인원 + 예전 기록에만 남은 이름
+  const settlementPeople = useMemo(() => {
+    const list = trip.travelers.map((t) => ({ ...t }));
+    const names = new Set(list.map((t) => t.name));
+    const extra = [...(trip.extraPeople ?? []), ...expenses.flatMap((e) => e.paidBy)];
+    extra.forEach((n) => {
+      if (n && !names.has(n)) {
+        names.add(n);
+        list.push({ id: `extra:${n}`, name: n, color: "#9ca3af" });
+      }
+    });
+    return list;
+  }, [trip.travelers, trip.extraPeople, expenses]);
+  const settlement = useMemo(() => calculateSettlement(settlementPeople, expenses), [settlementPeople, expenses]);
 
   function startEdit() {
     setDraftOrder(sortedAll.map((e) => e.id));
@@ -141,13 +155,22 @@ export default function ExpensesView({
       const ids = [...selected];
       if (onDeleteMany) await onDeleteMany(ids);
       else for (const id of ids) await onDelete(id);
-      setDraftOrder((list) => list.filter((id) => !selected.has(id)));
+      // 삭제하면 바로 편집을 끝낸다. 그 전에 바꿔둔 순서가 있으면 같이 저장한다.
+      const remaining = ordered.map((e) => e.id).filter((id) => !selected.has(id));
+      const before = sortedAll.map((e) => e.id).filter((id) => !selected.has(id));
+      if (onReorder && remaining.some((id, i) => before[i] !== id)) await onReorder(remaining);
       setSelected(new Set());
+      setEditMode(false);
     } catch (err: any) {
       setEditError(err?.message ?? "삭제하지 못했어요.");
     } finally {
       setBusy(false);
     }
+  }
+
+  const allVisibleSelected = visible.length > 0 && visible.every((e) => selected.has(e.id));
+  function toggleSelectAll() {
+    setSelected(allVisibleSelected ? new Set() : new Set(visible.map((e) => e.id)));
   }
 
   async function finishEdit() {
@@ -223,12 +246,74 @@ export default function ExpensesView({
                 )}
               </>
             )}
-            {editMode && (
-              <span className="ml-auto text-xs font-medium text-ink-500">
-                {selected.size > 0 ? `${selected.size}건 선택됨` : "삭제할 항목을 눌러 선택하세요"}
-              </span>
-            )}
           </div>
+
+          {/* 합계 · 비용 추가 / 편집 버튼은 스크롤하지 않아도 되게 목록 위에 둔다 */}
+          {editMode ? (
+            <div className="sticky top-[60px] z-10 -mx-4 mt-3 bg-[#f7f8fa]/95 px-4 py-2 backdrop-blur">
+              <div className="flex gap-2">
+                <button
+                  onClick={deleteSelected}
+                  disabled={selected.size === 0 || busy}
+                  className="flex-1 rounded-2xl border border-red-200 bg-white py-3 text-sm font-semibold text-red-500 disabled:opacity-40"
+                >
+                  선택 삭제{selected.size > 0 ? ` (${selected.size})` : ""}
+                </button>
+                <button
+                  onClick={finishEdit}
+                  disabled={busy}
+                  className="flex-1 rounded-2xl bg-brand-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {busy ? "저장 중..." : "완료"}
+                </button>
+                <button
+                  onClick={() => setEditMode(false)}
+                  disabled={busy}
+                  className="flex-1 rounded-2xl border border-ink-200 bg-white py-3 text-sm font-semibold text-ink-600"
+                >
+                  취소
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="mt-2 flex items-center gap-2 px-1 text-sm font-medium text-ink-600"
+              >
+                <span
+                  className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                    allVisibleSelected ? "border-red-500 bg-red-500 text-white" : "border-ink-300 bg-white text-ink-300"
+                  }`}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                전체 선택
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex items-stretch gap-2">
+              <div className="flex flex-1 flex-col justify-center rounded-2xl bg-ink-900 px-4 py-3 text-white">
+                <span className="text-[11px] font-medium text-ink-300">
+                  {dayFilter === "all" ? "전체" : dayFilter === "0" ? "여행준비" : `DAY ${dayFilter}`} 지출
+                </span>
+                <span className="text-lg font-extrabold">{formatKRW(grandTotalKRW)}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setEditing(undefined);
+                  setModalOpen(true);
+                }}
+                className="shrink-0 rounded-2xl border border-dashed border-brand-300 bg-brand-50 px-5 text-sm font-semibold text-brand-600"
+              >
+                + 비용 추가
+              </button>
+            </div>
+          )}
+
+          {editError && (
+            <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">⚠️ {editError}</p>
+          )}
 
           {visible.length === 0 && (
             <div className="mt-3 rounded-2xl border border-ink-100 bg-white">
@@ -236,94 +321,39 @@ export default function ExpensesView({
             </div>
           )}
 
-          {groups.map(([day, list]) => {
-            const dayTotal = list.reduce((s, e) => s + e.amountKRW, 0);
-            return (
-              <section key={day} className="mt-4">
-                <div className="mb-1.5 flex items-baseline justify-between px-1">
-                  <h2 className="text-sm font-bold text-ink-900">
-                    {day === 0 ? "여행준비" : `DAY ${day}`}
-                    {day > 0 && (
-                      <span className="ml-1.5 text-xs font-medium text-ink-400">{dayDateLabel(trip.startDate, day)}</span>
-                    )}
-                  </h2>
-                  <span className="text-xs font-semibold text-ink-500">{formatKRW(dayTotal)}</span>
-                </div>
-                <div className="rounded-2xl border border-ink-100 bg-white px-4">
-                  {list.map((e, idx) => (
-                    <ExpenseRow
-                      key={e.id}
-                      expense={e}
-                      onClick={() => {
-                        setEditing(e);
-                        setModalOpen(true);
-                      }}
-                      editMode={editMode}
-                      selected={selected.has(e.id)}
-                      onToggleSelect={() => toggleSelect(e.id)}
-                      canMoveUp={idx > 0}
-                      canMoveDown={idx < list.length - 1}
-                      onMoveUp={onReorder ? () => move(e.id, -1) : undefined}
-                      onMoveDown={onReorder ? () => move(e.id, 1) : undefined}
-                    />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-
-          {editError && (
-            <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">⚠️ {editError}</p>
-          )}
-
-          {editMode ? (
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={deleteSelected}
-                disabled={selected.size === 0 || busy}
-                className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-500 disabled:opacity-40"
-              >
-                선택 삭제{selected.size > 0 ? ` (${selected.size})` : ""}
-              </button>
-              <button
-                onClick={() => setEditMode(false)}
-                disabled={busy}
-                className="rounded-2xl border border-ink-200 px-4 py-3 text-sm font-semibold text-ink-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={finishEdit}
-                disabled={busy}
-                className="flex-1 rounded-2xl bg-brand-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {busy ? "저장 중..." : "완료"}
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setEditing(undefined);
-                setModalOpen(true);
-              }}
-              className="mt-4 w-full rounded-2xl border border-dashed border-brand-300 bg-brand-50 py-3 text-sm font-semibold text-brand-600"
-            >
-              + 비용 추가
-            </button>
-          )}
-
-          <div className="mt-4 flex items-center justify-between rounded-2xl bg-ink-900 px-5 py-4 text-white">
-            <span className="text-sm font-medium text-ink-100">
-              {dayFilter === "all" ? "전체" : dayFilter === "0" ? "여행준비" : `DAY ${dayFilter}`} 지출
-            </span>
-            <span className="text-lg font-extrabold">{formatKRW(grandTotalKRW)}</span>
-          </div>
+          {groups.map(([day, list]) => (
+            <section key={day} className="mt-4">
+              <h2 className="mb-1.5 px-1 text-sm font-bold text-ink-900">
+                {day === 0 ? "여행준비" : `DAY ${day}`}
+                {day > 0 && <span className="ml-1.5">{dayDateLabel(trip.startDate, day)}</span>}
+              </h2>
+              <div className="rounded-2xl border border-ink-100 bg-white px-4">
+                {list.map((e, idx) => (
+                  <ExpenseRow
+                    key={e.id}
+                    expense={e}
+                    onClick={() => {
+                      setEditing(e);
+                      setModalOpen(true);
+                    }}
+                    editMode={editMode}
+                    selected={selected.has(e.id)}
+                    onToggleSelect={() => toggleSelect(e.id)}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < list.length - 1}
+                    onMoveUp={onReorder ? () => move(e.id, -1) : undefined}
+                    onMoveDown={onReorder ? () => move(e.id, 1) : undefined}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
         </>
       )}
 
       {tab === "settlement" && (
         <div className="mt-4">
-          <SettlementPanel settlement={settlement} expenses={expenses} />
+          <SettlementPanel settlement={settlement} expenses={expenses} people={settlementPeople} />
         </div>
       )}
 
@@ -338,7 +368,8 @@ export default function ExpensesView({
         onClose={() => setModalOpen(false)}
         onSave={onSave}
         onDelete={editing ? () => onDelete(editing.id) : undefined}
-        onAddTraveler={onAddTraveler}
+        extraPeople={trip.extraPeople}
+        onAddPerson={onAddPerson}
       />
 
       <CsvImportModal

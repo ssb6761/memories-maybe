@@ -80,6 +80,14 @@ export const api = {
     return request("/api/me");
   },
 
+  updateMe(name: string): Promise<{ user: AuthUser }> {
+    return request("/api/me", { method: "PATCH", body: JSON.stringify({ name }) });
+  },
+
+  deleteMe(): Promise<{ ok: boolean }> {
+    return request("/api/me", { method: "DELETE" });
+  },
+
   logout(): Promise<{ ok: boolean }> {
     return request("/api/logout", { method: "POST" });
   },

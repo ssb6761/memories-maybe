@@ -4,8 +4,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTrip } from "@/lib/store";
 import ClearableInput from "@/components/ClearableInput";
+import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
-import { findDestination } from "@/lib/destinations";
+import { findDestination, joinDestinations, splitDestinations } from "@/lib/destinations";
 
 export default function SettingsPage({ params }: { params: { tripId: string } }) {
   const { trip, loaded, updateTrip } = useTrip(params.tripId);
@@ -16,6 +17,7 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [destinationPickerOpen, setDestinationPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!trip) return;
@@ -50,21 +52,25 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
               className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
             />
           </div>
-          {/* 여행지는 만들 때 정한 값으로 고정(수정 불가). 지도 위치·통화 기본값이 여행지를 기준으로 정해진다. */}
+          {/* 여행지: 누르면 여행지 선택 화면(여러 곳 선택 가능) */}
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">여행지</label>
-            <div className="flex h-[42px] items-center rounded-xl bg-ink-100/60 px-3 text-sm text-ink-700">
+            <button
+              type="button"
+              onClick={() => setDestinationPickerOpen(true)}
+              className="flex min-h-[42px] w-full items-center justify-between rounded-xl border border-ink-300 bg-white px-3 py-2 text-left text-sm"
+            >
               {destination ? (
-                <>
+                <span className="font-medium text-ink-900">
                   {findDestination(destination)?.flag ?? "📍"} {destination}
-                  {findDestination(destination) && (
-                    <span className="ml-1 text-xs text-ink-400">{findDestination(destination)!.country}</span>
-                  )}
-                </>
+                </span>
               ) : (
-                <span className="text-ink-400">여행지 없음</span>
+                <span className="text-ink-400">여행지 선택</span>
               )}
-            </div>
+              <span className="text-ink-300" aria-hidden>
+                ›
+              </span>
+            </button>
           </div>
           {/* 여행 기간: 날짜 칸 두 개가 아이폰에서 화면 밖으로 넘쳐서, 여행 만들기와 같은
               한 캘린더 방식으로 바꿨다. */}
@@ -97,6 +103,12 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
         </form>
       </section>
 
+      <DestinationPicker
+        open={destinationPickerOpen}
+        selected={splitDestinations(destination)}
+        onClose={() => setDestinationPickerOpen(false)}
+        onConfirm={(cities) => setDestination(joinDestinations(cities))}
+      />
       <DateRangePicker
         open={datePickerOpen}
         start={startDate}

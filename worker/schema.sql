@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS trips (
   start_date TEXT NOT NULL,
   end_date TEXT NOT NULL,
   cover_emoji TEXT,
+  extra_people TEXT, -- 가계부 정산 인원(JSON 배열)
   version INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
