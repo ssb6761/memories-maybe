@@ -27,7 +27,7 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
     setStartDate(trip.startDate);
     setEndDate(trip.endDate);
     if (typeof window !== "undefined") {
-      setShareUrl(`${window.location.origin}/remote/${params.shareId}/schedule`);
+      setShareUrl(`${window.location.origin}/join/${params.shareId}`);
     }
   }, [trip, params.shareId]);
 
@@ -160,10 +160,10 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
       </section>
 
       <section className="rounded-2xl border border-ink-100 bg-white p-4">
-        <h2 className="mb-1 text-sm font-bold text-ink-900">여행 공유</h2>
+        <h2 className="mb-1 text-sm font-bold text-ink-900">친구 초대</h2>
         <p className="mb-3 text-xs text-ink-500">
-          이 여행은 <b>온라인(Cloudflare) 공유 모드</b>예요. 아래 링크를 열면 누구나 실제로 같은
-          데이터를 보고 함께 편집할 수 있어요 (몇 초 안에 서로 반영됩니다).
+          아래 초대 링크를 보내면, 받은 사람이 로그인한 뒤 "참여하기"를 눌러 이 여행의 멤버가
+          돼요. 멤버끼리 일정 · 가계부를 함께 보고 고칠 수 있어요.
         </p>
         <div className="flex items-center gap-2">
           <input
@@ -175,13 +175,13 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
             onClick={handleCopy}
             className="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white"
           >
-            {copied ? "복사됨!" : "링크 복사"}
+            {copied ? "복사됨!" : "초대 링크 복사"}
           </button>
         </div>
         <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-[11px] leading-relaxed text-emerald-700">
-          공유 코드: <b>{params.shareId}</b> — 이 코드만 알아도 누구나 /remote/{params.shareId} 로
-          접속할 수 있으니, 아는 사람끼리만 공유해주세요. 로그인 개념이 없는 프로토타입이라
-          코드를 아는 사람은 누구나 수정할 수 있습니다.
+          초대 코드: <b>{params.shareId}</b> — "내 여행" 화면에서 이 코드를 입력해도 참여할 수
+          있어요. 코드를 아는 사람은 로그인 후 참여할 수 있으니 같이 가는 사람에게만 보내주세요.
+          멤버를 빼려면 위 동행자 목록에서 "제거"를 누르세요.
         </p>
       </section>
 

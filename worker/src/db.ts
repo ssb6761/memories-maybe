@@ -1,5 +1,15 @@
 export interface Env {
   DB: D1Database;
+  // 로그인 후 돌아갈 수 있는 앱 주소 목록(쉼표 구분). wrangler.toml [vars]
+  ALLOWED_ORIGINS?: string;
+  // 아래는 비밀값 — `npx wrangler secret put 이름` 으로 등록 (README-worker.md 참고)
+  SESSION_SECRET?: string;
+  KAKAO_CLIENT_ID?: string;
+  KAKAO_CLIENT_SECRET?: string;
+  NAVER_CLIENT_ID?: string;
+  NAVER_CLIENT_SECRET?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 }
 
 export function nowIso(): string {
@@ -48,6 +58,7 @@ export function rowToTraveler(row: any) {
     name: row.name,
     color: row.color,
     isOwner: !!row.is_owner,
+    userId: row.user_id ?? undefined,
   };
 }
 

@@ -39,6 +39,7 @@ export interface Traveler {
   name: string;
   color: string; // 아바타/뱃지에 사용할 브랜드 컬러
   isOwner?: boolean;
+  userId?: string; // 로그인한 멤버와 연결된 동행자면 그 사용자 id
 }
 
 export interface Trip {

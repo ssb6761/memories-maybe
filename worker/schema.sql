@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS travelers (
   trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT NOT NULL,
-  is_owner INTEGER NOT NULL DEFAULT 0
+  is_owner INTEGER NOT NULL DEFAULT 0,
+  user_id TEXT -- 로그인한 멤버와 연결된 동행자
 );
 
 CREATE TABLE IF NOT EXISTS schedule_items (
@@ -73,3 +74,33 @@ CREATE INDEX IF NOT EXISTS idx_travelers_trip ON travelers(trip_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_trip ON schedule_items(trip_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_trip ON expenses(trip_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_import_key ON expenses(trip_id, import_key);
+
+-- ── 로그인(카카오·네이버·구글) ──────────────────────────────
+-- Worker가 처음 요청을 받을 때 자동으로 만들기도 한다(src/index.ts의 ensureSchema).
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,          -- 'kakao' | 'naver' | 'google'
+  provider_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT,
+  avatar_url TEXT,
+  created_at TEXT NOT NULL,
+  last_login_at TEXT NOT NULL,
+  UNIQUE (provider, provider_id)
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,     -- 세션 토큰의 SHA-256 (원문은 저장하지 않음)
+  user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS trip_members (
+  trip_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member', -- 'owner' | 'member'
+  joined_at TEXT NOT NULL,
+  PRIMARY KEY (trip_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_members_user ON trip_members(user_id);

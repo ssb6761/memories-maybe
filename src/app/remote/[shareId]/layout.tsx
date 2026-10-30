@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRemoteTrip } from "@/lib/useRemoteTrip";
 import BottomNav from "@/components/BottomNav";
 import { TravelerStack } from "@/components/TravelerBadge";
@@ -20,8 +21,18 @@ export default function RemoteTripLayout({
   children: ReactNode;
   params: { shareId: string };
 }) {
-  const { trip, loaded, exists, error } = useRemoteTrip(params.shareId);
+  const { trip, loaded, exists, error, notMember } = useRemoteTrip(params.shareId);
   const basePath = `/remote/${params.shareId}`;
+  const router = useRouter();
+
+  // 멤버가 아니면 초대 화면으로 (거기서 "참여하기"를 누르면 멤버가 된다)
+  useEffect(() => {
+    if (notMember) router.replace(`/join/${params.shareId}`);
+  }, [notMember, params.shareId, router]);
+
+  if (notMember) {
+    return <div className="flex h-screen items-center justify-center text-sm text-ink-400">초대 화면으로 이동 중...</div>;
+  }
 
   if (loaded && !exists) {
     return (

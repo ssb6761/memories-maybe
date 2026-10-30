@@ -1,4 +1,5 @@
 import { Expense, ScheduleItem, Trip } from "./types";
+import { AuthUser, clearToken, getToken, rememberNext } from "./auth";
 
 // Cloudflare Worker(온라인 공유 모드) API 클라이언트.
 // NEXT_PUBLIC_API_BASE_URL이 설정되어 있을 때만 사용된다 (worker/README-worker.md 참고).
@@ -24,26 +25,86 @@ export function isRemoteEnabled(): boolean {
   return !!process.env.NEXT_PUBLIC_API_BASE_URL;
 }
 
+// 서버가 돌려준 에러. code로 "로그인 필요(UNAUTHORIZED)", "멤버 아님(NOT_MEMBER)"을 구분한다.
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${baseUrl()}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers ?? {}),
+    },
     cache: "no-store",
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as any).error ?? `요청에 실패했어요 (${res.status})`);
+    const body: any = await res.json().catch(() => ({}));
+    // 로그인이 풀렸으면(세션 만료 등) 로그인 화면으로 보낸다. 로그인 후 지금 화면으로 돌아온다.
+    if (res.status === 401 && typeof window !== "undefined") {
+      clearToken();
+      if (!window.location.pathname.startsWith("/login")) {
+        rememberNext(window.location.pathname + window.location.search);
+        window.location.href = "/login";
+      }
+    }
+    throw new ApiError(body.error ?? `요청에 실패했어요 (${res.status})`, res.status, body.code);
   }
   return res.json() as Promise<T>;
 }
 
+// 내 여행 목록 한 줄
+export type MyTrip = Trip & { version: number; role: "owner" | "member" };
+
+export interface TripPreview {
+  shareId: string;
+  name: string;
+  destination?: string;
+  startDate: string;
+  endDate: string;
+  memberCount: number;
+  isMember: boolean;
+}
+
 export const api = {
+  me(): Promise<{ user: AuthUser }> {
+    return request("/api/me");
+  },
+
+  logout(): Promise<{ ok: boolean }> {
+    return request("/api/logout", { method: "POST" });
+  },
+
+  listTrips(): Promise<{ trips: MyTrip[] }> {
+    return request("/api/trips");
+  },
+
+  previewTrip(shareId: string): Promise<TripPreview> {
+    return request(`/api/trips/${shareId}/preview`);
+  },
+
+  joinTrip(shareId: string): Promise<RemoteTripPayload> {
+    return request(`/api/trips/${shareId}/join`, { method: "POST" });
+  },
+
+  leaveTrip(shareId: string): Promise<{ ok: boolean }> {
+    return request(`/api/trips/${shareId}/leave`, { method: "POST" });
+  },
+
   createTrip(input: {
     name: string;
     destination?: string;
     startDate: string;
     endDate: string;
-    travelerNames: string[];
   }): Promise<RemoteTripPayload> {
     return request("/api/trips", { method: "POST", body: JSON.stringify(input) });
   },

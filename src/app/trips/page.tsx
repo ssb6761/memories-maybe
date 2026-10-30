@@ -3,14 +3,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTripList } from "@/lib/store";
-import { api, isRemoteEnabled } from "@/lib/api";
-import {
-  listOnlineTripRefs,
-  rememberOnlineTrip,
-  forgetOnlineTrip,
-  updateOnlineTripRef,
-  type OnlineTripRef,
-} from "@/lib/onlineTripsRegistry";
+import { api, isRemoteEnabled, type MyTrip } from "@/lib/api";
+import { logout, useAuthUser } from "@/lib/auth";
 import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
 import { findDestination } from "@/lib/destinations";
@@ -35,12 +29,14 @@ interface TripCard {
   travelerInitials?: { name: string; color: string }[];
   isOnline: boolean;
   shareId?: string;
+  isOwner?: boolean;
   onOpen: () => void;
 }
 
 export default function TripsPage() {
   const router = useRouter();
   const { trips, loaded } = useTripList();
+  const { user } = useAuthUser();
 
   const [showOnlineForm, setShowOnlineForm] = useState(false);
   const [onlineName, setOnlineName] = useState("");
@@ -54,37 +50,23 @@ export default function TripsPage() {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
   const [joining, setJoining] = useState(false);
-  const [onlineTrips, setOnlineTrips] = useState<OnlineTripRef[]>([]);
+  const [onlineTrips, setOnlineTrips] = useState<MyTrip[]>([]);
   const [onlineTripsLoaded, setOnlineTripsLoaded] = useState(false);
 
-  // 온라인 여행은 서버(D1)에 실제 데이터가 있고, 이 브라우저엔 "바로가기" 목록만
-  // 저장해둔다. 화면 뜨자마자 저장된 목록을 먼저 보여주고, 그 다음 서버에서 최신
-  // 이름/날짜를 다시 받아와 조용히 갱신한다 (삭제된 여행이면 목록에서 빠진다).
+  // 내 여행 목록은 서버에서 "내가 멤버인 여행"으로 받아온다(로그인한 계정 기준이라
+  // 어느 기기에서 로그인해도 똑같이 보인다).
   useEffect(() => {
-    const stored = listOnlineTripRefs();
-    setOnlineTrips(stored);
-    setOnlineTripsLoaded(true);
-    if (!isRemoteEnabled() || stored.length === 0) return;
-
-    stored.forEach((ref) => {
-      api
-        .getTrip(ref.shareId)
-        .then((payload) => {
-          const updated = updateOnlineTripRef(ref.shareId, {
-            name: payload.trip.name,
-            destination: payload.trip.destination,
-            startDate: payload.trip.startDate,
-            endDate: payload.trip.endDate,
-            coverEmoji: payload.trip.coverEmoji,
-          });
-          setOnlineTrips(updated);
-        })
-        .catch(() => {
-          // 서버가 잠깐 응답 안 하는 것일 수도 있으니, 못 찾았다고 바로 목록에서
-          // 지우지는 않는다 (사용자가 직접 "지우기"로만 제거).
-        });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!isRemoteEnabled()) {
+      setOnlineTripsLoaded(true);
+      return;
+    }
+    api
+      .listTrips()
+      .then((res) => setOnlineTrips(res.trips))
+      .catch(() => {
+        /* 로그인이 풀린 경우 api.ts가 로그인 화면으로 보낸다 */
+      })
+      .finally(() => setOnlineTripsLoaded(true));
   }, []);
 
   async function handleCreateOnline(e: FormEvent) {
@@ -101,25 +83,14 @@ export default function TripsPage() {
     setOnlineCreating(true);
     setOnlineError("");
     try {
-      // 동행자 입력칸은 없앴다. 처음엔 "나" 한 명으로 만들고, 같이 가는 사람은 여행 설정 화면에서
-      // 추가하거나 공유 코드로 초대하면 된다.
+      // 만든 사람(로그인한 계정)이 방장이자 첫 동행자가 된다. 같이 가는 사람은 여행 관리에서
+      // 초대 링크를 보내면, 그 사람이 로그인해서 참여한다.
       const payload = await api.createTrip({
         name: onlineName.trim(),
         destination: onlineDestination,
         startDate: onlineStart,
         endDate: onlineEnd,
-        travelerNames: ["나"],
       });
-      setOnlineTrips(
-        rememberOnlineTrip({
-          shareId: payload.trip.shareId,
-          name: payload.trip.name,
-          destination: payload.trip.destination,
-          startDate: payload.trip.startDate,
-          endDate: payload.trip.endDate,
-          coverEmoji: payload.trip.coverEmoji,
-        })
-      );
       router.push(`/remote/${payload.trip.shareId}/schedule`);
     } catch (err: any) {
       setOnlineError(err?.message ?? "여행 생성에 실패했어요.");
@@ -135,19 +106,8 @@ export default function TripsPage() {
     setJoinError("");
     setJoining(true);
     try {
-      // 참여하기 전에 실제로 존재하는 여행인지 먼저 확인해서, "내 여행" 목록에
-      // 바로가기로 남길 수 있게 이름/날짜까지 같이 받아온다.
-      const payload = await api.getTrip(code);
-      setOnlineTrips(
-        rememberOnlineTrip({
-          shareId: payload.trip.shareId,
-          name: payload.trip.name,
-          destination: payload.trip.destination,
-          startDate: payload.trip.startDate,
-          endDate: payload.trip.endDate,
-          coverEmoji: payload.trip.coverEmoji,
-        })
-      );
+      // 공유(초대) 코드로 이 여행의 멤버가 된다.
+      const payload = await api.joinTrip(code);
       router.push(`/remote/${payload.trip.shareId}/schedule`);
     } catch (err: any) {
       setJoinError(err?.message ?? "해당 공유 코드의 여행을 찾을 수 없어요.");
@@ -156,13 +116,16 @@ export default function TripsPage() {
     }
   }
 
-  function handleForgetOnline(shareId: string, e: MouseEvent) {
+  async function handleLeave(shareId: string, e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    if (!confirm("이 여행을 '내 여행' 목록에서만 제거할까요? (서버의 실제 데이터는 지워지지 않아요)")) {
-      return;
+    if (!confirm("이 여행에서 나갈까요? 다시 들어오려면 초대 코드가 필요해요.")) return;
+    try {
+      await api.leaveTrip(shareId);
+      setOnlineTrips((list) => list.filter((t) => t.shareId !== shareId));
+    } catch (err: any) {
+      alert(err?.message ?? "나가기에 실패했어요.");
     }
-    setOnlineTrips(forgetOnlineTrip(shareId));
   }
 
   // 로컬(브라우저 저장) 여행과 온라인(서버 공유) 여행을 하나의 목록으로 합쳐서
@@ -188,6 +151,7 @@ export default function TripsPage() {
       coverEmoji: t.coverEmoji,
       isOnline: true,
       shareId: t.shareId,
+      isOwner: t.role === "owner",
       onOpen: () => router.push(`/remote/${t.shareId}/schedule`),
     }));
     return [...localCards, ...onlineCards].sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -196,7 +160,17 @@ export default function TripsPage() {
   return (
     <div className="mx-auto min-h-screen max-w-md bg-white px-5 pb-10 pt-8 sm:max-w-xl">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink-900">내 여행</h1>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-ink-900">내 여행</h1>
+          {user && (
+            <p className="mt-0.5 truncate text-xs text-ink-500">
+              {user.name}님 ·{" "}
+              <button type="button" onClick={() => logout()} className="underline">
+                로그아웃
+              </button>
+            </p>
+          )}
+        </div>
         {isRemoteEnabled() && (
           <button
             onClick={() => setShowOnlineForm((v) => !v)}
@@ -280,7 +254,7 @@ export default function TripsPage() {
               <ClearableInput
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="공유 코드로 참여하기 (예: BALI2024)"
+                placeholder="초대 코드로 참여하기 (예: BALI2024)"
                 className="flex-1 rounded-xl border border-ink-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
               />
               <button
@@ -372,13 +346,13 @@ export default function TripsPage() {
                 ))}
               </div>
             )}
-            {trip.isOnline && (
+            {trip.isOnline && !trip.isOwner && (
               <button
                 type="button"
-                onClick={(e) => handleForgetOnline(trip.shareId!, e)}
+                onClick={(e) => handleLeave(trip.shareId!, e)}
                 className="shrink-0 rounded-full px-2 py-1 text-[11px] font-medium text-ink-400 hover:bg-ink-100 hover:text-ink-600"
               >
-                지우기
+                나가기
               </button>
             )}
           </div>

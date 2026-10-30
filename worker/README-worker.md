@@ -219,3 +219,62 @@ npx wrangler deploy
 ```
 
 (이전에 안내한 `migrate_00X_*.sql` 파일은 이미 실행했어도, 안 했어도 괜찮아요.)
+
+## 로그인(카카오 · 네이버 · 구글) 설정
+
+이번 버전부터 **로그인해야만 앱을 쓸 수 있고, 여행은 초대받은 멤버만** 볼 수 있습니다.
+각 회사에서 키를 받아 Worker에 등록해야 로그인 버튼이 동작해요.
+
+먼저 내 Worker 주소를 확인하세요. `npx wrangler deploy`를 실행하면 마지막에
+`https://memories-maybe-api.<내계정>.workers.dev` 같은 주소가 나옵니다(아래에서 `<WORKER>`).
+앱 주소는 Vercel 주소입니다(아래에서 `<APP>`, 예: `https://memories-maybe.vercel.app`).
+
+### 1. 카카오 (https://developers.kakao.com)
+1. 내 애플리케이션 → 애플리케이션 추가하기
+2. 앱 설정 → 앱 키에서 **REST API 키** 복사 → `KAKAO_CLIENT_ID`
+3. 카카오 로그인 → **활성화 ON**, Redirect URI에 `<WORKER>/auth/kakao/callback` 등록
+4. 카카오 로그인 → 동의항목에서 **닉네임**, **프로필 사진** 설정
+5. (선택) 보안 → Client Secret을 켰다면 그 값 → `KAKAO_CLIENT_SECRET`
+6. 플랫폼 → Web 사이트 도메인에 `<APP>` 등록
+
+### 2. 네이버 (https://developers.naver.com)
+1. Application → 애플리케이션 등록, 사용 API: **네이버 로그인**
+2. 제공 정보: **별명**, **프로필 사진** (이메일은 선택)
+3. 서비스 환경: PC 웹 / 모바일 웹 — 서비스 URL `<APP>`, Callback URL `<WORKER>/auth/naver/callback`
+4. **Client ID** → `NAVER_CLIENT_ID`, **Client Secret** → `NAVER_CLIENT_SECRET`
+5. ⚠️ "개발 중" 상태에서는 멤버관리 탭에 등록한 아이디만 로그인됩니다.
+   친구들도 쓰게 하려면 테스트 아이디로 추가하거나 **검수 요청**을 해야 해요.
+
+### 3. 구글 (https://console.cloud.google.com — 지도 키를 받은 그 프로젝트)
+1. API 및 서비스 → OAuth 동의 화면: 외부, 앱 이름 "추억일지도", 범위는 기본(email, profile, openid)
+2. 사용자 인증 정보 → 사용자 인증 정보 만들기 → **OAuth 클라이언트 ID** → 웹 애플리케이션
+3. 승인된 리디렉션 URI: `<WORKER>/auth/google/callback`
+4. 클라이언트 ID → `GOOGLE_CLIENT_ID`, 클라이언트 보안 비밀번호 → `GOOGLE_CLIENT_SECRET`
+5. ⚠️ 동의 화면이 "테스트" 상태면 테스트 사용자로 등록한 계정만 로그인됩니다.
+   다른 사람도 쓰게 하려면 **앱 게시(프로덕션으로 푸시)** 를 눌러주세요(기본 범위만 쓰면 별도 심사 없음).
+
+### 4. Worker에 키 등록 + 배포 (worker 폴더에서)
+`wrangler.toml`의 `ALLOWED_ORIGINS`에 내 앱 주소가 맞게 들어있는지 먼저 확인하세요.
+
+```bash
+# 세션 서명용 비밀 문자열 — 아래로 하나 만들어서 붙여넣기
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+npx wrangler secret put SESSION_SECRET
+
+npx wrangler secret put KAKAO_CLIENT_ID
+npx wrangler secret put NAVER_CLIENT_ID
+npx wrangler secret put NAVER_CLIENT_SECRET
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+# (카카오 Client Secret을 켠 경우에만) npx wrangler secret put KAKAO_CLIENT_SECRET
+
+npx wrangler deploy
+```
+
+`secret put`을 실행하면 값을 입력하라고 나오는데, 복사한 값을 붙여넣고 엔터를 누르면 됩니다.
+**Worker를 배포한 뒤에는 바로 앱도 푸시해주세요.** 새 Worker는 로그인 없는 요청을 막기 때문에
+예전 앱으로는 여행이 안 열립니다.
+
+### 예전 여행은?
+로그인 전에 쓰던 여행은 그 기기에서 처음 로그인할 때 자동으로 계정에 옮겨집니다.
+멤버가 없던 예전 여행은 처음 참여한 사람이 방장이 돼요. 친구는 여행 관리 → 초대 링크로 참여합니다.

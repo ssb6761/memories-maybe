@@ -12,3 +12,8 @@ compatibility_date = "2024-09-25"
 binding = "DB"
 database_name = "memories-maybe-db"
 database_id = "3c95d8ae-83d5-4727-aaf7-6515b9f15f77"
+
+# 로그인 후 돌아갈 수 있는 앱 주소(쉼표로 구분). Vercel 주소가 다르면 여기를 고쳐주세요.
+# 카카오·네이버·구글 키 같은 비밀값은 여기 적지 말고 `npx wrangler secret put` 으로 등록합니다.
+[vars]
+ALLOWED_ORIGINS = "https://memories-maybe.vercel.app"

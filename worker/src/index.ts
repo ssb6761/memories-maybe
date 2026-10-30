@@ -1,5 +1,6 @@
 import { Env, bumpTripVersion, newId, newShareId, nowIso, rowToExpense, rowToScheduleItem, rowToTrip } from "./db";
 import { parseTripleExpensesCsv } from "./csv";
+import { AuthUser, deleteSession, getAuthUser, handleAuthRoute } from "./auth";
 
 // ─────────────────────────────────────────────────────────────
 // 여행 플래너 온라인 공유 모드용 Cloudflare Worker API.
@@ -10,7 +11,7 @@ import { parseTripleExpensesCsv } from "./csv";
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 function json(data: unknown, status = 200): Response {
@@ -27,7 +28,39 @@ function notFound(message = "찾을 수 없어요."): Response {
 // 새 기능 때문에 테이블에 칸(컬럼)이 추가될 때마다 마이그레이션 명령을 직접 실행하지 않아도
 // 되도록, Worker가 처음 요청을 받을 때 빠진 칸이 있으면 스스로 추가한다.
 // (Worker 인스턴스마다 한 번만 확인하고, 이미 있으면 아무것도 하지 않는다.)
+// 로그인 기능용 테이블. 없으면 만든다.
+const REQUIRED_TABLES = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    avatar_url TEXT,
+    created_at TEXT NOT NULL,
+    last_login_at TEXT NOT NULL,
+    UNIQUE (provider, provider_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS trip_members (
+    trip_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member',
+    joined_at TEXT NOT NULL,
+    PRIMARY KEY (trip_id, user_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_members_user ON trip_members(user_id)`,
+];
+
 const REQUIRED_COLUMNS: Record<string, Record<string, string>> = {
+  travelers: {
+    user_id: "TEXT", // 로그인한 멤버와 연결된 동행자
+  },
   schedule_items: {
     kind: "TEXT NOT NULL DEFAULT 'place'",
     flight_json: "TEXT",
@@ -41,6 +74,9 @@ let schemaReady: Promise<void> | null = null;
 function ensureSchema(db: D1Database): Promise<void> {
   if (!schemaReady) {
     schemaReady = (async () => {
+      for (const sql of REQUIRED_TABLES) {
+        await db.prepare(sql).run();
+      }
       for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
         const info = await db.prepare(`PRAGMA table_info(${table})`).all<any>();
         const existing = new Set((info.results ?? []).map((c: any) => c.name));
@@ -56,6 +92,56 @@ function ensureSchema(db: D1Database): Promise<void> {
     });
   }
   return schemaReady;
+}
+
+function unauthorized(): Response {
+  return json({ error: "로그인이 필요해요.", code: "UNAUTHORIZED" }, 401);
+}
+
+const TRAVELER_COLORS = ["#2563eb", "#f97316", "#16a34a", "#db2777", "#7c3aed", "#0891b2"];
+
+async function getMembership(db: D1Database, tripId: string, userId: string) {
+  return db.prepare(`SELECT * FROM trip_members WHERE trip_id = ? AND user_id = ?`).bind(tripId, userId).first<any>();
+}
+
+// 초대 코드로 여행에 참여. 멤버가 아무도 없는 예전 여행이면 처음 참여한 사람이 방장이 된다.
+async function joinTrip(db: D1Database, tripRow: any, user: AuthUser) {
+  const tripId = tripRow.id as string;
+  if (await getMembership(db, tripId, user.id)) return;
+  const countRow = await db.prepare(`SELECT COUNT(*) as c FROM trip_members WHERE trip_id = ?`).bind(tripId).first<any>();
+  const isFirst = (countRow?.c ?? 0) === 0;
+  await db
+    .prepare(`INSERT INTO trip_members (trip_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)`)
+    .bind(tripId, user.id, isFirst ? "owner" : "member", nowIso())
+    .run();
+
+  const linked = await db
+    .prepare(`SELECT id FROM travelers WHERE trip_id = ? AND user_id = ?`)
+    .bind(tripId, user.id)
+    .first<any>();
+  if (!linked) {
+    // 예전 여행의 방장 동행자("나" 등)는 처음 참여한 사람과 연결한다. 이름은 가계부 기록과
+    // 이어져 있어서 바꾸지 않는다.
+    const ownerTraveler = isFirst
+      ? await db
+          .prepare(`SELECT id FROM travelers WHERE trip_id = ? AND is_owner = 1 AND user_id IS NULL`)
+          .bind(tripId)
+          .first<any>()
+      : null;
+    if (ownerTraveler) {
+      await db.prepare(`UPDATE travelers SET user_id = ? WHERE id = ?`).bind(user.id, ownerTraveler.id).run();
+    } else {
+      const all = await db.prepare(`SELECT name FROM travelers WHERE trip_id = ?`).bind(tripId).all<any>();
+      const names = new Set((all.results ?? []).map((t: any) => t.name));
+      let name = user.name;
+      for (let i = 2; names.has(name); i++) name = `${user.name}${i}`;
+      await db
+        .prepare(`INSERT INTO travelers (id, trip_id, name, color, is_owner, user_id) VALUES (?, ?, ?, ?, ?, ?)`)
+        .bind(newId("trav"), tripId, name, TRAVELER_COLORS[names.size % TRAVELER_COLORS.length], isFirst ? 1 : 0, user.id)
+        .run();
+    }
+  }
+  await bumpTripVersion(db, tripId);
 }
 
 async function getTripRowByShareId(db: D1Database, shareId: string) {
@@ -90,14 +176,51 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    if (parts[0] !== "api" || parts[1] !== "trips") {
+    if (parts[0] === "auth") {
+      await ensureSchema(db);
+      const res = await handleAuthRoute(request, env, parts);
+      if (res) return res;
+    }
+
+    if (parts[0] !== "api") {
       return json({ ok: true, message: "memories-maybe-api" });
     }
 
     try {
       await ensureSchema(db);
+      const user = await getAuthUser(request, db);
 
-      // POST /api/trips  — 새 온라인 여행 생성
+      // GET /api/me — 지금 로그인한 사용자
+      if (parts.length === 2 && parts[1] === "me" && method === "GET") {
+        if (!user) return unauthorized();
+        return json({ user });
+      }
+
+      // POST /api/logout
+      if (parts.length === 2 && parts[1] === "logout" && method === "POST") {
+        await deleteSession(request, db);
+        return json({ ok: true });
+      }
+
+      if (parts[1] !== "trips") return notFound("지원하지 않는 경로예요.");
+      // 여행 관련 API는 전부 로그인해야 쓸 수 있다.
+      if (!user) return unauthorized();
+
+      // GET /api/trips — 내가 멤버인 여행 목록
+      if (parts.length === 2 && method === "GET") {
+        const rows = await db
+          .prepare(
+            `SELECT t.*, m.role AS member_role FROM trips t JOIN trip_members m ON m.trip_id = t.id
+             WHERE m.user_id = ? ORDER BY t.start_date ASC`
+          )
+          .bind(user.id)
+          .all<any>();
+        return json({
+          trips: (rows.results ?? []).map((r: any) => ({ ...rowToTrip(r, []), role: r.member_role })),
+        });
+      }
+
+      // POST /api/trips  — 새 온라인 여행 생성 (만든 사람이 방장 멤버 + 첫 동행자)
       if (parts.length === 2 && method === "POST") {
         const body = await request.json<any>();
         const tripId = newId("trip");
@@ -111,18 +234,8 @@ export default {
           .bind(tripId, shareId, body.name, body.destination ?? null, body.startDate, body.endDate, body.coverEmoji ?? null, now, now)
           .run();
 
-        const travelerNames: string[] = Array.isArray(body.travelerNames) && body.travelerNames.length > 0
-          ? body.travelerNames
-          : ["나"];
-        const colors = ["#2563eb", "#f97316", "#16a34a", "#db2777", "#7c3aed", "#0891b2"];
-        for (let i = 0; i < travelerNames.length; i++) {
-          await db
-            .prepare(`INSERT INTO travelers (id, trip_id, name, color, is_owner) VALUES (?, ?, ?, ?, ?)`)
-            .bind(newId("trav"), tripId, travelerNames[i], colors[i % colors.length], i === 0 ? 1 : 0)
-            .run();
-        }
-
         const tripRow = await getTripRowByShareId(db, shareId);
+        await joinTrip(db, tripRow, user);
         return json(await getFullTripPayload(db, tripRow), 201);
       }
 
@@ -132,6 +245,48 @@ export default {
         const tripRow = await getTripRowByShareId(db, shareId);
         if (!tripRow) return notFound("해당 공유 코드의 여행을 찾을 수 없어요.");
         const tripId = tripRow.id as string;
+        const membership = await getMembership(db, tripId, user.id);
+
+        // GET /api/trips/:shareId/preview — 초대 화면용 기본 정보 (멤버가 아니어도 볼 수 있음)
+        if (parts.length === 4 && parts[3] === "preview" && method === "GET") {
+          const countRow = await db
+            .prepare(`SELECT COUNT(*) as c FROM trip_members WHERE trip_id = ?`)
+            .bind(tripId)
+            .first<any>();
+          return json({
+            shareId,
+            name: tripRow.name,
+            destination: tripRow.destination ?? undefined,
+            startDate: tripRow.start_date,
+            endDate: tripRow.end_date,
+            memberCount: countRow?.c ?? 0,
+            isMember: !!membership,
+          });
+        }
+
+        // POST /api/trips/:shareId/join — 초대 코드로 참여
+        if (parts.length === 4 && parts[3] === "join" && method === "POST") {
+          await joinTrip(db, tripRow, user);
+          const fresh = await getTripRowByShareId(db, shareId);
+          return json(await getFullTripPayload(db, fresh));
+        }
+
+        // 여기부터는 이 여행의 멤버만 쓸 수 있다.
+        if (!membership) {
+          return json({ error: "이 여행에 초대받은 멤버만 볼 수 있어요.", code: "NOT_MEMBER" }, 403);
+        }
+
+        // POST /api/trips/:shareId/leave — 여행에서 나가기 (방장은 나갈 수 없음)
+        if (parts.length === 4 && parts[3] === "leave" && method === "POST") {
+          if (membership.role === "owner") {
+            return json({ error: "방장은 여행에서 나갈 수 없어요." }, 400);
+          }
+          await db.prepare(`DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?`).bind(tripId, user.id).run();
+          // 동행자 기록은 가계부와 이어져 있어서 남겨두고, 계정 연결만 끊는다.
+          await db.prepare(`UPDATE travelers SET user_id = NULL WHERE trip_id = ? AND user_id = ?`).bind(tripId, user.id).run();
+          await bumpTripVersion(db, tripId);
+          return json({ ok: true });
+        }
 
         // GET /api/trips/:shareId
         if (parts.length === 3 && method === "GET") {
@@ -176,6 +331,18 @@ export default {
 
         // DELETE /api/trips/:shareId/travelers/:travelerId
         if (parts.length === 5 && parts[3] === "travelers" && method === "DELETE") {
+          const target = await db
+            .prepare(`SELECT * FROM travelers WHERE id = ? AND trip_id = ?`)
+            .bind(parts[4], tripId)
+            .first<any>();
+          if (target?.is_owner) return json({ error: "방장은 제거할 수 없어요." }, 400);
+          // 로그인 멤버와 연결된 동행자를 지우면 그 사람의 멤버 자격도 같이 없앤다.
+          if (target?.user_id) {
+            await db
+              .prepare(`DELETE FROM trip_members WHERE trip_id = ? AND user_id = ? AND role != 'owner'`)
+              .bind(tripId, target.user_id)
+              .run();
+          }
           await db.prepare(`DELETE FROM travelers WHERE id = ? AND trip_id = ?`).bind(parts[4], tripId).run();
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);

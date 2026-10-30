@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Expense, ScheduleItem, Trip } from "./types";
-import { api, RemoteTripPayload } from "./api";
+import { api, ApiError, RemoteTripPayload } from "./api";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -15,6 +15,8 @@ export function useRemoteTrip(shareId: string) {
   const [data, setData] = useState<RemoteTripPayload | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  // 로그인은 했지만 이 여행의 멤버가 아님 → 초대(참여) 화면으로 보낸다
+  const [notMember, setNotMember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const versionRef = useRef<number>(0);
 
@@ -26,7 +28,11 @@ export function useRemoteTrip(shareId: string) {
       setNotFound(false);
       setError(null);
     } catch (err: any) {
-      if (String(err.message).includes("찾을 수 없")) {
+      if (err instanceof ApiError && err.code === "NOT_MEMBER") {
+        setNotMember(true);
+      } else if (err instanceof ApiError && err.status === 401) {
+        // api.ts가 로그인 화면으로 보낸다
+      } else if (String(err.message).includes("찾을 수 없")) {
         setNotFound(true);
       } else {
         setError(err.message ?? "불러오기에 실패했어요.");
@@ -121,6 +127,7 @@ export function useRemoteTrip(shareId: string) {
     loaded,
     exists: !notFound && !!data,
     notFound,
+    notMember,
     error,
     refresh,
     updateTrip,
