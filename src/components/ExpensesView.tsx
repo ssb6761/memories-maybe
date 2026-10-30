@@ -192,7 +192,7 @@ export default function ExpensesView({
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-4">
+    <div className={`mx-auto max-w-2xl px-4 py-4 ${editMode ? "pb-28" : ""}`}>
       <h1 className="mb-1 text-xl font-bold text-ink-900">가계부</h1>
 
       <div className="mt-3 flex gap-1 rounded-xl bg-ink-100 p-1">
@@ -250,34 +250,37 @@ export default function ExpensesView({
 
           {/* 합계 · 비용 추가 / 편집 버튼은 스크롤하지 않아도 되게 목록 위에 둔다 */}
           {editMode ? (
-            <div className="sticky top-[60px] z-10 -mx-4 mt-3 bg-[#f7f8fa]/95 px-4 py-2 backdrop-blur">
-              <div className="flex gap-2">
-                <button
-                  onClick={deleteSelected}
-                  disabled={selected.size === 0 || busy}
-                  className="flex-1 rounded-2xl border border-red-200 bg-white py-3 text-sm font-semibold text-red-500 disabled:opacity-40"
-                >
-                  선택 삭제{selected.size > 0 ? ` (${selected.size})` : ""}
-                </button>
-                <button
-                  onClick={finishEdit}
-                  disabled={busy}
-                  className="flex-1 rounded-2xl bg-brand-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {busy ? "저장 중..." : "완료"}
-                </button>
-                <button
-                  onClick={() => setEditMode(false)}
-                  disabled={busy}
-                  className="flex-1 rounded-2xl border border-ink-200 bg-white py-3 text-sm font-semibold text-ink-600"
-                >
-                  취소
-                </button>
+            <div className="mt-3">
+              {/* 선택 삭제 / 완료 / 취소는 화면 아래(하단 탭 바로 위)에 고정. 버튼 크기는 일정 편집과 같게. */}
+              <div className="fixed inset-x-0 bottom-[104px] z-20 px-4 md:bottom-6">
+                <div className="mx-auto flex max-w-2xl gap-2 rounded-2xl bg-white/95 p-2 shadow-pop backdrop-blur">
+                  <button
+                    onClick={deleteSelected}
+                    disabled={selected.size === 0 || busy}
+                    className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-500 disabled:opacity-40"
+                  >
+                    선택 삭제{selected.size > 0 ? ` (${selected.size})` : ""}
+                  </button>
+                  <button
+                    onClick={finishEdit}
+                    disabled={busy}
+                    className="flex-1 rounded-2xl bg-brand-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {busy ? "저장 중..." : "완료"}
+                  </button>
+                  <button
+                    onClick={() => setEditMode(false)}
+                    disabled={busy}
+                    className="rounded-2xl border border-ink-200 bg-white px-4 py-3 text-sm font-semibold text-ink-600"
+                  >
+                    취소
+                  </button>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className="mt-2 flex items-center gap-2 px-1 text-sm font-medium text-ink-600"
+                className="flex items-center gap-2 px-1 text-sm font-medium text-ink-600"
               >
                 <span
                   className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
@@ -304,7 +307,7 @@ export default function ExpensesView({
                   setEditing(undefined);
                   setModalOpen(true);
                 }}
-                className="shrink-0 rounded-2xl border border-dashed border-brand-300 bg-brand-50 px-5 text-sm font-semibold text-brand-600"
+                className="shrink-0 rounded-2xl bg-brand-600 px-5 text-sm font-bold text-white shadow-card active:scale-[0.98]"
               >
                 + 비용 추가
               </button>

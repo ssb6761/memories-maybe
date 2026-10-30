@@ -25,6 +25,7 @@ import {
   removeRecentlyViewed,
 } from "@/lib/placeHistory";
 import ClearableInput from "./ClearableInput";
+import Emoji from "./Emoji";
 
 // 장소 추가 화면 지도에 미리 찍어둘 "지금 보고 있는 DAY에 이미 넣은 장소"
 export interface SavedPlacePin {
@@ -537,7 +538,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
                     onClick={() => goTo("mapPick")}
                     className="flex-1 rounded-xl bg-brand-50 py-3 text-sm font-semibold text-brand-700 active:scale-[0.99]"
                   >
-                    📍 지도에서 선택하기
+                    <Emoji e="📍" size={15} /> 지도에서 선택하기
                   </button>
                 )}
                 <button

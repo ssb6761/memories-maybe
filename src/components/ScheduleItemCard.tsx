@@ -3,6 +3,7 @@
 import { Expense, ScheduleItem } from "@/lib/types";
 import { categoryColor } from "@/lib/scheduleUtils";
 import { formatAmount } from "@/lib/currency";
+import Emoji from "./Emoji";
 
 interface Props {
   item: ScheduleItem;
@@ -49,11 +50,11 @@ export default function ScheduleItemCard({
       <div className="flex w-8 shrink-0 flex-col items-center">
         {isMemo ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-100 text-sm">
-            📝
+            <Emoji e="📝" size={15} />
           </span>
         ) : isFlight ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm">
-            ✈️
+            <Emoji e="✈️" size={15} />
           </span>
         ) : (
           <span

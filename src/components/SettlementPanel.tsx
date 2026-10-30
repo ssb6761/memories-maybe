@@ -3,6 +3,7 @@
 import { Expense, SettlementResult } from "@/lib/types";
 import { formatAmount, formatKRW } from "@/lib/currency";
 import { currencyName } from "@/lib/exchangeRates";
+import Emoji from "./Emoji";
 
 export interface SettlementPerson {
   name: string;
@@ -52,7 +53,9 @@ export default function SettlementPanel({
                 </span>
                 <span className="text-right">
                   <span className="block text-sm font-bold text-ink-900">{formatAmount(v.amount, code)}</span>
-                  {code !== "KRW" && <span className="block text-[11px] text-ink-400">≈ {formatKRW(v.krw)}</span>}
+                  {code !== "KRW" && (
+                    <span className="block text-xs font-semibold text-ink-600">≈ {formatKRW(v.krw)}</span>
+                  )}
                 </span>
               </div>
             ))}
@@ -84,7 +87,17 @@ export default function SettlementPanel({
           {methods.map((m) => (
             <div key={m} className="flex items-center justify-between py-2.5">
               <span className="text-sm font-medium text-ink-700">
-                {m === "카드" ? "💳 카드" : m === "현금" ? "💵 현금" : "결제수단 미지정"}
+                {m === "카드" ? (
+                  <>
+                    <Emoji e="💳" size={16} /> 카드
+                  </>
+                ) : m === "현금" ? (
+                  <>
+                    <Emoji e="💵" size={16} /> 현금
+                  </>
+                ) : (
+                  "결제수단 미지정"
+                )}
               </span>
               <span className="text-sm font-bold text-ink-900">{formatKRW(byMethod.get(m) ?? 0)}</span>
             </div>

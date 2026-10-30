@@ -22,11 +22,11 @@ export default function DayTabs({ totalDays, startDate, selectedDay, onSelect }:
           <button
             key={day}
             onClick={() => onSelect(day)}
-            className={`flex shrink-0 flex-col items-center rounded-xl px-3.5 py-2 text-sm font-semibold transition
+            className={`flex shrink-0 flex-col items-center rounded-xl px-3 py-1.5 text-xs font-semibold transition
                         ${active ? "bg-brand-600 text-white shadow-card" : "bg-ink-100 text-ink-600"}`}
           >
             <span>DAY {day}</span>
-            <span className={`mt-0.5 text-xs font-medium ${active ? "text-brand-100" : "text-ink-500"}`}>
+            <span className={`text-xs font-medium ${active ? "text-brand-100" : "text-ink-500"}`}>
               {date.getMonth() + 1}.{date.getDate()} ({WEEKDAYS[date.getDay()]})
             </span>
           </button>

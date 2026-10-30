@@ -11,6 +11,7 @@ import AddPlaceScreen, { type SavedPlacePin } from "./AddPlaceScreen";
 import MemoModal from "./MemoModal";
 import FlightModal from "./FlightModal";
 import ExpenseModal from "./ExpenseModal";
+import Emoji from "./Emoji";
 
 interface Props {
   day: number;
@@ -203,9 +204,6 @@ export default function ScheduleTimeline({
 
       {reorderMode && (
         <div className="mb-3">
-          <p className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
-            ▲▼ 버튼으로 순서를 바꾸고 "완료"를 눌러 저장하세요. 일정을 눌러 선택하면 한꺼번에 삭제할 수 있어요.
-          </p>
           <button
             type="button"
             onClick={() =>
@@ -215,7 +213,7 @@ export default function ScheduleTimeline({
                   : new Set(displayItems.map((i) => i.id))
               )
             }
-            className="mt-2 flex items-center gap-2 px-1 text-sm font-medium text-ink-600"
+            className="flex items-center gap-2 px-1 text-sm font-medium text-ink-600"
           >
             <span
               className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
@@ -309,7 +307,7 @@ export default function ScheduleTimeline({
             onClick={() => setAddPlaceOpen(true)}
             className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-dashed border-brand-300 bg-brand-50 py-3 text-sm font-semibold text-brand-600 active:scale-[0.99]"
           >
-            📍 장소 추가
+            <Emoji e="📍" size={16} /> 장소 추가
           </button>
           <button
             onClick={() => setAddChoiceOpen(true)}
@@ -375,7 +373,7 @@ export default function ScheduleTimeline({
                 }}
                 className="flex flex-col items-center gap-1.5 rounded-2xl border border-sky-200 bg-sky-50 py-5 text-sm font-semibold text-sky-700 active:scale-[0.98]"
               >
-                <span className="text-2xl">✈️</span>
+                <Emoji e="✈️" size={28} />
                 항공편
               </button>
               <button
@@ -386,7 +384,7 @@ export default function ScheduleTimeline({
                 }}
                 className="flex flex-col items-center gap-1.5 rounded-2xl border border-ink-200 bg-ink-50 py-5 text-sm font-semibold text-ink-700 active:scale-[0.98]"
               >
-                <span className="text-2xl">📝</span>
+                <Emoji e="📝" size={28} />
                 메모
               </button>
             </div>

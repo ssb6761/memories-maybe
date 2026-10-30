@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError, type TripPreview } from "@/lib/api";
 import { findDestination } from "@/lib/destinations";
+import Emoji from "@/components/Emoji";
 
 function formatRange(start: string, end: string) {
   const s = new Date(start);
@@ -58,7 +59,7 @@ export default function JoinPage({ params }: { params: { shareId: string } }) {
 
       {preview && (
         <>
-          <span className="text-5xl">{dest?.flag ?? "✈️"}</span>
+          <Emoji e={dest?.flag ?? "✈️"} size={56} />
           <p className="text-sm text-ink-500">여행에 초대받았어요</p>
           <h1 className="text-2xl font-extrabold text-ink-900">{preview.name}</h1>
           <p className="text-sm text-ink-500">

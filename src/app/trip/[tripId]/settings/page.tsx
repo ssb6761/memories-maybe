@@ -7,6 +7,7 @@ import ClearableInput from "@/components/ClearableInput";
 import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
 import { findDestination, joinDestinations, splitDestinations } from "@/lib/destinations";
+import Emoji from "@/components/Emoji";
 
 export default function SettingsPage({ params }: { params: { tripId: string } }) {
   const { trip, loaded, updateTrip } = useTrip(params.tripId);
@@ -62,7 +63,7 @@ export default function SettingsPage({ params }: { params: { tripId: string } })
             >
               {destination ? (
                 <span className="font-medium text-ink-900">
-                  {findDestination(destination)?.flag ?? "📍"} {destination}
+                  <Emoji e={findDestination(destination)?.flag ?? "📍"} size={16} /> {destination}
                 </span>
               ) : (
                 <span className="text-ink-400">여행지 선택</span>

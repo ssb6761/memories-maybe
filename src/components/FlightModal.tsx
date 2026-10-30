@@ -5,6 +5,7 @@ import { Category, FlightInfo, ScheduleItem } from "@/lib/types";
 import { guessAirline, normalizeFlightNo } from "@/lib/airlines";
 import ClearableInput from "./ClearableInput";
 import TimeField from "./TimeField";
+import Emoji from "./Emoji";
 
 interface Props {
   open: boolean;
@@ -167,7 +168,7 @@ export default function FlightModal({ open, day, initial, onClose, onSave, onDel
           </div>
 
           <div className="rounded-2xl border border-ink-100 bg-ink-50 p-3">
-            <p className="mb-2 text-xs font-bold text-ink-700">🛫 출발</p>
+            <p className="mb-2 text-xs font-bold text-ink-700"><Emoji e="🛫" size={14} /> 출발</p>
             <div className="grid grid-cols-2 gap-2">
               <div className="min-w-0">
                 <label className={label}>공항</label>
@@ -186,7 +187,7 @@ export default function FlightModal({ open, day, initial, onClose, onSave, onDel
           </div>
 
           <div className="rounded-2xl border border-ink-100 bg-ink-50 p-3">
-            <p className="mb-2 text-xs font-bold text-ink-700">🛬 도착</p>
+            <p className="mb-2 text-xs font-bold text-ink-700"><Emoji e="🛬" size={14} /> 도착</p>
             <div className="grid grid-cols-2 gap-2">
               <div className="min-w-0">
                 <label className={label}>공항</label>

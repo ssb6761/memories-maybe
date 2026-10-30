@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DESTINATION_REGIONS, searchDestinations, type Destination } from "@/lib/destinations";
+import { DESTINATION_REGIONS, findDestination, searchDestinations, type Destination } from "@/lib/destinations";
+import Emoji from "./Emoji";
 
 interface Props {
   open: boolean;
@@ -56,7 +57,7 @@ export default function DestinationPicker({ open, selected, onClose, onConfirm }
         onClick={() => toggle(d.city)}
         className="flex w-full items-center gap-3 py-3.5 text-left active:bg-ink-50"
       >
-        <span className="text-2xl leading-none">{d.flag}</span>
+        <Emoji e={d.flag} size={26} />
         <span className="min-w-0 flex-1">
           <span className="block text-[15px] font-semibold text-ink-900">{d.city}</span>
           <span className="block text-xs text-ink-500">
@@ -155,20 +156,28 @@ export default function DestinationPicker({ open, selected, onClose, onConfirm }
         )}
 
         {/* 고른 여행지 + 선택 완료 */}
-        <div className="border-t border-ink-100 px-4 pb-10 pt-3">
+        {/* 아이폰 홈 바 근처는 누르기 불편해서 아래 여백을 넉넉히(pb-16) 두고 위로 올렸다. */}
+        <div className="border-t border-ink-100 px-4 pb-16 pt-3">
           {picked.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {picked.map((c, i) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => toggle(c)}
-                  className="flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700"
-                >
-                  {i === 0 && <span className="text-[10px] text-brand-500">대표</span>}
-                  {c} ✕
-                </button>
-              ))}
+            <div className="mb-3 flex flex-wrap gap-2">
+              {picked.map((c, i) => {
+                const flag = findDestination(c)?.flag;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggle(c)}
+                    className="flex items-center gap-1.5 rounded-full bg-brand-50 py-2 pl-3 pr-3 text-[15px] font-semibold text-brand-700"
+                  >
+                    {flag && <Emoji e={flag} size={20} />}
+                    {c}
+                    {i === 0 && (
+                      <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">대표</span>
+                    )}
+                    <span className="ml-0.5 text-brand-400">✕</span>
+                  </button>
+                );
+              })}
             </div>
           )}
           <button

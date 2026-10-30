@@ -7,6 +7,7 @@ import { useRemoteTrip } from "@/lib/useRemoteTrip";
 import BottomNav from "@/components/BottomNav";
 import { TravelerStack } from "@/components/TravelerBadge";
 import InviteSheet from "@/components/InviteSheet";
+import Emoji from "@/components/Emoji";
 
 function formatRange(start: string, end: string) {
   const s = new Date(start);
@@ -65,7 +66,7 @@ export default function RemoteTripLayout({
             </Link>
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold text-ink-900 md:text-lg">
-                {trip?.coverEmoji ?? "🌐"} {trip?.name ?? "불러오는 중..."}
+                <Emoji e={trip?.coverEmoji ?? "🌐"} size={18} /> {trip?.name ?? "불러오는 중..."}
               </h1>
               {trip && (
                 <p className="truncate text-[11px] text-ink-500 md:text-xs">

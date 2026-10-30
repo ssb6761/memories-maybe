@@ -2,6 +2,7 @@
 
 import { Expense } from "@/lib/types";
 import { formatAmount, formatKRWApprox } from "@/lib/currency";
+import Emoji from "./Emoji";
 
 const CATEGORY_ICON: Record<string, string> = {
   교통: "🚗",
@@ -68,13 +69,15 @@ export default function ExpenseRow({
           </svg>
         </span>
       ) : (
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-100 text-base">{icon}</span>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-100">
+          <Emoji e={icon} size={18} />
+        </span>
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-ink-900">{expense.title}</p>
         <p className="mt-0.5 truncate text-xs text-ink-500">
           {expense.paymentMethod ? `${expense.paymentMethod} · ` : ""}
-          결제: {expense.paidBy.join(", ") || "-"} | 함께: {expense.splitWith.join(", ") || "-"}
+          결제: {expense.paidBy.join(", ") || "-"}
         </p>
       </div>
       {editMode ? (

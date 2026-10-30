@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Emoji from "./Emoji";
 
 const TABS = [
   { key: "schedule", label: "일정", icon: "🗺" },
@@ -35,7 +36,7 @@ export default function BottomNav({ tripId, basePath }: { tripId?: string; baseP
                               : "text-ink-500 md:border-transparent"
                           }`}
             >
-              <span className="text-lg md:text-base">{tab.icon}</span>
+              <Emoji e={tab.icon} size={22} />
               <span>{tab.label}</span>
             </Link>
           );

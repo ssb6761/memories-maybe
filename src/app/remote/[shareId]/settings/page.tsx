@@ -9,6 +9,7 @@ import DateRangePicker, { formatNights, formatShortDate } from "@/components/Dat
 import { findDestination, joinDestinations, splitDestinations } from "@/lib/destinations";
 import { useAuthUser } from "@/lib/auth";
 import { TravelerAvatar } from "@/components/TravelerBadge";
+import Emoji from "@/components/Emoji";
 
 export default function RemoteSettingsPage({ params }: { params: { shareId: string } }) {
   const { trip, loaded, updateTrip, removeTraveler } = useRemoteTrip(params.shareId);
@@ -66,7 +67,7 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
             >
               {destination ? (
                 <span className="font-medium text-ink-900">
-                  {findDestination(destination)?.flag ?? "📍"} {destination}
+                  <Emoji e={findDestination(destination)?.flag ?? "📍"} size={16} /> {destination}
                 </span>
               ) : (
                 <span className="text-ink-400">여행지 선택</span>

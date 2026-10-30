@@ -9,6 +9,7 @@ import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
 import { findDestination, joinDestinations, primaryDestination, splitDestinations } from "@/lib/destinations";
 import ClearableInput from "@/components/ClearableInput";
+import Emoji from "@/components/Emoji";
 
 function formatRange(start: string, end: string) {
   const s = new Date(start);
@@ -215,7 +216,7 @@ export default function TripsPage() {
                 >
                   {onlineDestination ? (
                     <span className="font-medium text-ink-900">
-                      {findDestination(onlineDestination)?.flag ?? "📍"} {onlineDestination}
+                      <Emoji e={findDestination(onlineDestination)?.flag ?? "📍"} size={16} /> {onlineDestination}
                       {findDestination(onlineDestination) && (
                         <span className="ml-1 text-xs font-normal text-ink-400">
                           {findDestination(onlineDestination)!.country}
@@ -235,7 +236,7 @@ export default function TripsPage() {
                 >
                   {onlineStart && onlineEnd ? (
                     <span className="font-medium text-ink-900">
-                      📅 {formatShortDate(onlineStart)} - {formatShortDate(onlineEnd)}
+                      <Emoji e="📅" size={16} /> {formatShortDate(onlineStart)} - {formatShortDate(onlineEnd)}
                       <span className="ml-1.5 text-xs font-normal text-brand-600">
                         {formatNights(onlineStart, onlineEnd)}
                       </span>
@@ -337,7 +338,7 @@ export default function TripsPage() {
             className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-ink-100 bg-white p-4 text-left shadow-card transition active:scale-[0.99]"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-2xl">
-              {trip.coverEmoji ?? (trip.isOnline ? "🌐" : "✈️")}
+              <Emoji e={trip.coverEmoji ?? findDestination(trip.destination)?.flag ?? "✈️"} size={28} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-ink-900">{trip.name}</p>
