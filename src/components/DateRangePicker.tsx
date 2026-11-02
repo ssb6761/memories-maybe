@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 interface Props {
   open: boolean;
@@ -44,6 +45,7 @@ export function formatNights(start: string, end: string) {
 // 트리플/숙박 앱처럼 한 캘린더에서 출발일 → 도착일을 차례로 눌러 기간을 고른다.
 // 고른 사이 날짜는 띠 모양으로 칠해서 "며칠부터 며칠까지"가 한눈에 보이게 한다.
 export default function DateRangePicker({ open, start, end, onClose, onConfirm }: Props) {
+  useBackToClose(open, onClose);
   const [s, setS] = useState(start);
   const [e, setE] = useState(end);
   const scrollRef = useRef<HTMLDivElement>(null);

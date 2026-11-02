@@ -40,6 +40,8 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
       { city: "후쿠오카", country: "일본", flag: "🇯🇵", en: "Fukuoka", popular: true },
       { city: "삿포로", country: "일본", flag: "🇯🇵", en: "Sapporo" },
       { city: "오키나와", country: "일본", flag: "🇯🇵", en: "Okinawa", popular: true, geo: "Naha, Okinawa" },
+      { city: "이시가키", country: "일본", flag: "🇯🇵", en: "Ishigaki", geo: "Ishigaki, Okinawa" },
+      { city: "미야코지마", country: "일본", flag: "🇯🇵", en: "Miyakojima", geo: "Miyakojima, Okinawa" },
       { city: "교토", country: "일본", flag: "🇯🇵", en: "Kyoto" },
       { city: "나고야", country: "일본", flag: "🇯🇵", en: "Nagoya" },
       { city: "고베", country: "일본", flag: "🇯🇵", en: "Kobe" },
@@ -58,6 +60,7 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
       { city: "나트랑", country: "베트남", flag: "🇻🇳", en: "Nha Trang", popular: true },
       { city: "푸꾸옥", country: "베트남", flag: "🇻🇳", en: "Phu Quoc" },
       { city: "하노이", country: "베트남", flag: "🇻🇳", en: "Hanoi" },
+      { city: "사파", country: "베트남", flag: "🇻🇳", en: "Sapa", geo: "Sa Pa, Lao Cai" },
       { city: "호치민", country: "베트남", flag: "🇻🇳", en: "Ho Chi Minh City" },
       { city: "달랏", country: "베트남", flag: "🇻🇳", en: "Da Lat" },
       { city: "방콕", country: "태국", flag: "🇹🇭", en: "Bangkok", popular: true },
@@ -76,6 +79,8 @@ export const DESTINATION_REGIONS: DestinationRegion[] = [
       { city: "씨엠립", country: "캄보디아", flag: "🇰🇭", en: "Siem Reap" },
       { city: "비엔티안", country: "라오스", flag: "🇱🇦", en: "Vientiane" },
       { city: "루앙프라방", country: "라오스", flag: "🇱🇦", en: "Luang Prabang" },
+      { city: "방비엥", country: "라오스", flag: "🇱🇦", en: "Vang Vieng" },
+      { city: "라오스", country: "라오스", flag: "🇱🇦", en: "Laos", geo: "Vientiane" },
     ],
   },
   {
@@ -193,4 +198,11 @@ export function findDestination(value?: string): Destination | undefined {
   const city = primaryDestination(value);
   if (!city) return undefined;
   return ALL_DESTINATIONS.find((d) => d.city === city);
+}
+
+// 여러 여행지를 모두 찾는다(못 찾은 이름은 뺀다). 가계부 통화 목록에 쓴다.
+export function findDestinations(value?: string): Destination[] {
+  return splitDestinations(value)
+    .map((city) => ALL_DESTINATIONS.find((d) => d.city === city))
+    .filter(Boolean) as Destination[];
 }

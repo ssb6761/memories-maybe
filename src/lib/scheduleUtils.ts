@@ -81,3 +81,56 @@ export function insertIndexByTime(items: ScheduleItem[], time?: string): number 
   if (firstTimed >= 0) return firstTimed;
   return items.length;
 }
+
+// 거리순 재정렬: 좌표가 있는 장소들을 "첫 장소에서 출발해 가장 짧게 도는 순서"로 바꾼다.
+// - 첫 장소(보통 숙소·공항)는 그대로 첫 자리에 둔다.
+// - 메모·항공편·좌표 없는 장소는 원래 자리를 그대로 지키고, 장소들만 자리를 바꾼다.
+// 가까운 곳부터 고른 뒤(2-opt로) 길이 엇갈리는 구간을 한 번 더 펴서 다듬는다.
+export function sortByDistance(items: ScheduleItem[]): string[] {
+  const hasCoord = (i: ScheduleItem) =>
+    (i.kind ?? "place") === "place" && typeof i.lat === "number" && typeof i.lng === "number";
+  const slots = items.map((it, idx) => (hasCoord(it) ? idx : -1)).filter((i) => i >= 0);
+  if (slots.length < 3) return items.map((i) => i.id);
+  const pts = slots.map((i) => items[i]);
+  const d = (a: ScheduleItem, b: ScheduleItem) =>
+    haversineKm({ lat: a.lat!, lng: a.lng! }, { lat: b.lat!, lng: b.lng! });
+
+  // 1) 가까운 곳부터
+  const route = [0];
+  const left = new Set(pts.map((_, i) => i).slice(1));
+  while (left.size) {
+    const last = pts[route[route.length - 1]];
+    let best = -1;
+    let bestD = Infinity;
+    left.forEach((i) => {
+      const dd = d(last, pts[i]);
+      if (dd < bestD) {
+        bestD = dd;
+        best = i;
+      }
+    });
+    route.push(best);
+    left.delete(best);
+  }
+  // 2) 엇갈린 구간 펴기 (끝이 열린 경로, 시작점 고정)
+  const len = (r: number[]) => r.slice(1).reduce((s, v, i) => s + d(pts[r[i]], pts[v]), 0);
+  let improved = true;
+  let guard = 0;
+  while (improved && guard++ < 50) {
+    improved = false;
+    for (let i = 1; i < route.length - 1; i++) {
+      for (let k = i + 1; k < route.length; k++) {
+        const next = [...route.slice(0, i), ...route.slice(i, k + 1).reverse(), ...route.slice(k + 1)];
+        if (len(next) + 1e-9 < len(route)) {
+          route.splice(0, route.length, ...next);
+          improved = true;
+        }
+      }
+    }
+  }
+  const ids = items.map((i) => i.id);
+  slots.forEach((slot, n) => {
+    ids[slot] = pts[route[n]].id;
+  });
+  return ids;
+}

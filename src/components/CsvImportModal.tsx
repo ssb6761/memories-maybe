@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ImportedExpenseDraft, parseTripleExpensesCsv } from "@/lib/csv";
 import { formatKRW } from "@/lib/currency";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 interface Props {
   open: boolean;
@@ -48,6 +49,7 @@ export default function CsvImportModal({
   onImport,
   onImportRaw,
 }: Props) {
+  useBackToClose(open, onClose);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("select");
   const [fileName, setFileName] = useState("");

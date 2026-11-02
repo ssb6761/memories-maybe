@@ -67,9 +67,22 @@ export default function TripsPage() {
       setOnlineTripsLoaded(true);
       return;
     }
+    // 지난번 목록을 먼저 보여주고(기기에 저장해 둔 것) 서버에서 최신 목록을 받아 바꾼다.
+    try {
+      const cached = localStorage.getItem("mm:trips");
+      if (cached) {
+        setOnlineTrips(JSON.parse(cached));
+        setOnlineTripsLoaded(true);
+      }
+    } catch {}
     api
       .listTrips()
-      .then((res) => setOnlineTrips(res.trips))
+      .then((res) => {
+        setOnlineTrips(res.trips);
+        try {
+          localStorage.setItem("mm:trips", JSON.stringify(res.trips));
+        } catch {}
+      })
       .catch(() => {
         /* 로그인이 풀린 경우 api.ts가 로그인 화면으로 보낸다 */
       })

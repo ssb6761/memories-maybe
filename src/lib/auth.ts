@@ -48,6 +48,12 @@ export function setToken(token: string) {
 export function clearToken() {
   safeSet(TOKEN_KEY, null);
   cachedUser = undefined;
+  // 로그아웃하면 기기에 저장해 둔 여행 목록·여행 데이터(빠른 표시용)도 지운다
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("mm:"))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {}
 }
 
 // 로그인 화면으로 가기 전에 보고 있던 주소(예: 초대 링크)를 기억했다가, 로그인 후 그리로 보낸다.

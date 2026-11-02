@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Category, Expense, ScheduleItem, Traveler } from "@/lib/types";
-import { buildLegs, sortedDayItems } from "@/lib/scheduleUtils";
+import { buildLegs, sortByDistance, sortedDayItems } from "@/lib/scheduleUtils";
 import { formatDistance } from "@/lib/distance";
 import { isPlaceItem, placeNumbers } from "@/lib/mapHelpers";
 import ScheduleItemCard from "./ScheduleItemCard";
@@ -106,7 +106,7 @@ export default function ScheduleTimeline({
   const [addPlaceOpen, setAddPlaceOpen] = useState(false);
   const [memoModalOpen, setMemoModalOpen] = useState(false);
   const [editingMemo, setEditingMemo] = useState<ScheduleItem | undefined>(undefined);
-  // "항공 및 메모 추가"를 누르면 먼저 항공편/메모 중 고르는 작은 시트가 뜬다.
+  // "항공 및 시간/메모 추가"를 누르면 먼저 항공편/시간·메모 중 고르는 작은 시트가 뜬다.
   const [addChoiceOpen, setAddChoiceOpen] = useState(false);
   const [flightModalOpen, setFlightModalOpen] = useState(false);
   const [editingFlight, setEditingFlight] = useState<ScheduleItem | undefined>(undefined);
@@ -202,7 +202,7 @@ export default function ScheduleTimeline({
       )}
 
       {reorderMode && (
-        <div className="mb-3">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() =>
@@ -227,7 +227,29 @@ export default function ScheduleTimeline({
             </span>
             전체 선택
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              const next = sortByDistance(displayItems);
+              if (next.every((id, i) => displayItems[i]?.id === id)) {
+                alert("이미 가장 가까운 순서예요. (좌표가 있는 장소가 3곳 이상일 때 바뀌어요)");
+                return;
+              }
+              setDraftOrder(next);
+            }}
+            className="flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-600 active:scale-95"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M5 19c3-6 11-2 14-12M19 7v4m0-4h-4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            거리순 정렬
+          </button>
         </div>
+      )}
+      {reorderMode && (
+        <p className="-mt-1 mb-3 px-1 text-[11px] leading-relaxed text-ink-400">
+          ≡ 를 끌어서 순서를 바꾸거나, 거리순 정렬로 첫 장소에서 가까운 순서대로 정리할 수 있어요. 완료를 눌러야 저장돼요.
+        </p>
       )}
 
       <div className="relative">
@@ -257,20 +279,20 @@ export default function ScheduleTimeline({
               {leg && (
                 <div className="flex pl-1">
                   <div className="flex w-8 shrink-0 flex-col items-center">
-                    <div className="h-1.5 w-[2px] bg-ink-400" />
+                    <div className="h-1.5 w-[2px] bg-[#bcc2ca]" />
                     {leg.km !== null && (
                       <span className="whitespace-nowrap text-[10px] font-medium leading-tight text-ink-400">
                         {formatDistance(leg.km)}
                       </span>
                     )}
-                    <div className="h-1.5 w-[2px] bg-ink-400" />
+                    <div className="h-1.5 w-[2px] bg-[#bcc2ca]" />
                   </div>
                 </div>
               )}
               {(reorderMode || !leg) && (
                 <div className="flex h-2 pl-1">
                   <div className="flex w-8 shrink-0 justify-center">
-                    {!isLast && <div className="h-full w-[2px] bg-ink-400" />}
+                    {!isLast && <div className="h-full w-[2px] bg-[#bcc2ca]" />}
                   </div>
                 </div>
               )}
@@ -311,15 +333,15 @@ export default function ScheduleTimeline({
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => setAddPlaceOpen(true)}
-            className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-dashed border-brand-300 bg-brand-50 py-3 text-sm font-semibold text-brand-600 active:scale-[0.99]"
+            className="flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-dashed border-brand-300 bg-brand-50 px-2 py-3 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
           >
             <Emoji e="📍" size={16} /> 장소 추가
           </button>
           <button
             onClick={() => setAddChoiceOpen(true)}
-            className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-dashed border-ink-300 bg-ink-100/60 py-3 text-sm font-semibold text-ink-600 active:scale-[0.99]"
+            className="flex min-w-0 flex-[1.4] items-center justify-center gap-1 rounded-2xl border border-dashed border-ink-300 bg-ink-100/60 px-2 py-3 text-center text-[13px] font-semibold leading-tight text-ink-600 active:scale-[0.99]"
           >
-            항공 및 메모 추가
+            항공 및 시간/메모 추가
           </button>
           {items.length > 0 && (
             <button
@@ -391,7 +413,7 @@ export default function ScheduleTimeline({
                 className="flex flex-col items-center gap-1.5 rounded-2xl border border-ink-200 bg-ink-50 py-5 text-sm font-semibold text-ink-700 active:scale-[0.98]"
               >
                 <Emoji e="📝" size={28} />
-                메모
+                시간/메모
               </button>
             </div>
             <button
@@ -418,8 +440,8 @@ export default function ScheduleTimeline({
         day={day}
         initial={editingMemo}
         onClose={() => setMemoModalOpen(false)}
-        onSave={({ id, day: memoDay, text, time }) =>
-          onSave({ id, day: memoDay, name: "메모", category: "기타", kind: "memo", memo: text, time })
+        onSave={({ id, day: memoDay, text, time, photos }) =>
+          onSave({ id, day: memoDay, name: "메모", category: "기타", kind: "memo", memo: text, time, photos })
         }
         onDelete={editingMemo ? () => onDelete(editingMemo.id) : undefined}
       />
@@ -435,7 +457,7 @@ export default function ScheduleTimeline({
           expenseTarget
             ? {
                 scheduleItemId: expenseTarget.id,
-                place: expenseTarget.address ?? expenseTarget.name,
+                place: expenseTarget.name,
                 title: expenseTarget.name,
                 day: expenseTarget.day,
               }

@@ -6,6 +6,7 @@ import { sortedDayItems, totalDaysOf } from "@/lib/scheduleUtils";
 import DayTabs from "@/components/DayTabs";
 import ScheduleTimeline from "@/components/ScheduleTimeline";
 import MapView from "@/components/MapView";
+import ResizableMap from "@/components/ResizableMap";
 
 export default function SchedulePage({
   params,
@@ -54,9 +55,10 @@ export default function SchedulePage({
         />
 
         {/* 모바일: 일정 위에 컴팩트 지도를 두어 지도와 일정이 자연스럽게 이어지도록 함 */}
-        <div className="h-52 border-b border-ink-100 md:hidden">
+        {/* 휴대폰: 아래 손잡이를 위아래로 끌어 지도를 넓히거나 줄인다 */}
+        <ResizableMap>
           <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
-        </div>
+        </ResizableMap>
 
         <ScheduleTimeline
           day={selectedDay}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 interface Props {
   open: boolean;
@@ -12,6 +13,7 @@ interface Props {
 // 상단 동행자 동그라미(+ 버튼)를 누르면 뜨는 친구 초대 팝업.
 // 초대 링크를 보여주고 복사하거나, 휴대폰 공유하기(카톡·메시지 등)로 바로 보낼 수 있다.
 export default function InviteSheet({ open, shareId, tripName, onClose }: Props) {
+  useBackToClose(open, onClose);
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);

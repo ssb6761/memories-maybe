@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Expense, ScheduleItem, Traveler } from "@/lib/types";
-import { findDestination } from "@/lib/destinations";
+import { findDestinations } from "@/lib/destinations";
 import {
   CURRENCY_OPTIONS,
   currencyForCountry,
@@ -11,7 +11,10 @@ import {
   fetchRateToKRW,
 } from "@/lib/exchangeRates";
 import ClearableInput from "./ClearableInput";
+import ExpensePlaceField from "./ExpensePlaceField";
+import { PhotoButton, PhotoThumbs, usePhotoAttach } from "./PhotoAttach";
 import { useAuthUser } from "@/lib/auth";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 interface Props {
   open: boolean;
@@ -88,7 +91,17 @@ export default function ExpenseModal({
   extraPeople = [],
   onAddPerson,
 }: Props) {
-  const defaultCurrency = currencyForCountry(findDestination(destination)?.country) ?? "KRW";
+  useBackToClose(open, onClose);
+  // 여행지 나라의 통화가 기본. 통화 목록은 여행지 나라 통화들과 원화(KRW)만 보여준다.
+  // (여행지를 찾지 못하면 전체 목록)
+  const destCurrencies = Array.from(
+    new Set(
+      findDestinations(destination)
+        .map((d) => currencyForCountry(d.country))
+        .filter((c): c is string => !!c)
+    )
+  );
+  const defaultCurrency = destCurrencies[0] ?? "KRW";
 
   const [title, setTitle] = useState("");
   const [day, setDay] = useState<number | undefined>(undefined);
@@ -104,6 +117,10 @@ export default function ExpenseModal({
   const [scheduleItemId, setScheduleItemId] = useState("");
   // 결제한 사람
   const [paidBy, setPaidBy] = useState<string[]>([]);
+  const [place, setPlace] = useState("");
+  const [memo, setMemo] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const photo = usePhotoAttach(photos, setPhotos);
   const { user } = useAuthUser();
   const [addPersonOpen, setAddPersonOpen] = useState(false);
   const [newPerson, setNewPerson] = useState("");
@@ -134,6 +151,9 @@ export default function ExpenseModal({
     // 새 비용: 나(로그인한 사람)가 결제, 함께는 나만 체크된 상태로 시작
     const me = travelers.find((t) => user && t.userId === user.id) ?? travelers[0];
     setPaidBy(initial?.paidBy ?? (me ? [me.name] : []));
+    setPlace(initial?.place ?? prefill?.place ?? "");
+    setMemo(initial?.memo ?? "");
+    setPhotos(initial?.photos ?? []);
     // (함께 항목은 화면에서 뺐다. 저장할 때 결제한 사람으로 채운다.)
     setMenuOpen(false);
     setSaveError("");
@@ -185,7 +205,13 @@ export default function ExpenseModal({
   if (!open) return null;
 
   const canSave =
-    !!title.trim() && amountNumber > 0 && rateStatus !== "loading" && paidBy.length > 0;
+    !!title.trim() && amountNumber > 0 && rateStatus !== "loading" && paidBy.length > 0 && photo.uploading === 0;
+
+  const currencyChoices = (() => {
+    const codes = destCurrencies.length ? [...destCurrencies, "KRW"] : CURRENCY_OPTIONS.map((c) => c.code);
+    if (!codes.includes(currency)) codes.push(currency); // 예전에 다른 통화로 저장한 비용
+    return Array.from(new Set(codes)).map((code) => ({ code, name: currencyName(code) }));
+  })();
 
   // 고를 수 있는 사람: 동행자 + 가계부 정산 인원 + (예전 기록에만 남아 있는 이름)
   const people = (() => {
@@ -230,7 +256,6 @@ export default function ExpenseModal({
     if (!canSave) return;
     setSaving(true);
     setSaveError("");
-    const linked = scheduleItems.find((s) => s.id === scheduleItemId);
     try {
       // onSave가 서버에 저장하는 경우(온라인 공유 여행) 실패할 수 있으므로 반드시
       // 끝까지 기다렸다가 성공했을 때만 닫는다.
@@ -244,7 +269,9 @@ export default function ExpenseModal({
         rateToKRW: rate,
         amountKRW,
         paymentMethod,
-        place: initial?.place ?? prefill?.place ?? linked?.address ?? linked?.name,
+        place: place.trim() || undefined,
+        memo: memo.trim() || undefined,
+        photos,
         scheduleItemId: scheduleItemId || undefined,
         privateOnly: false,
         paidBy,
@@ -350,7 +377,7 @@ export default function ExpenseModal({
                 className="absolute inset-0 cursor-pointer opacity-0"
                 aria-label="통화 선택"
               >
-                {CURRENCY_OPTIONS.map((c) => (
+                {currencyChoices.map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.code}({c.name})
                   </option>
@@ -566,6 +593,43 @@ export default function ExpenseModal({
               )}
             </div>
 
+            {/* 장소(선택): 검색해서 고르거나 이름만 직접 추가 */}
+            <div>
+              <label className={fieldLabel}>장소(선택)</label>
+              <ExpensePlaceField value={place} onChange={setPlace} />
+            </div>
+
+            {/* 메모 및 사진(선택) */}
+            <div>
+              <label className={fieldLabel}>메모 및 사진(선택)</label>
+              <div className="relative">
+                <textarea
+                  value={memo}
+                  onChange={(e) => setMemo(e.target.value)}
+                  rows={3}
+                  placeholder="메모를 입력하세요."
+                  className={`w-full rounded-xl border border-ink-200 py-2.5 pl-3 text-base text-ink-900 outline-none placeholder:text-ink-300 focus:border-brand-500 ${
+                    photo.available ? "pr-14" : "pr-3"
+                  }`}
+                />
+                {photo.available && (
+                  <PhotoButton
+                    onClick={photo.open}
+                    count={photo.count}
+                    uploading={photo.uploading}
+                    className="absolute right-1.5 top-1.5 h-10 min-w-10 px-1.5"
+                  />
+                )}
+                {photo.input}
+              </div>
+              <PhotoThumbs
+                photos={photos}
+                uploading={photo.uploading}
+                onRemove={(id) => setPhotos((list) => list.filter((x) => x !== id))}
+              />
+              {photo.error && <p className="mt-1 text-xs text-red-500">{photo.error}</p>}
+            </div>
+
             {saveError && (
               <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">⚠️ {saveError}</p>
             )}
@@ -576,7 +640,7 @@ export default function ExpenseModal({
               disabled={!canSave || saving || deleting}
               className="w-full rounded-xl bg-brand-600 py-4 text-base font-semibold text-white active:scale-[0.99] disabled:bg-ink-100 disabled:text-ink-400"
             >
-              {saving ? "저장 중..." : "완료"}
+              {saving ? "저장 중..." : photo.uploading > 0 ? "사진 올리는 중..." : "완료"}
             </button>
           </div>
         </div>

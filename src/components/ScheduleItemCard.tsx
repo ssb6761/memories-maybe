@@ -2,8 +2,8 @@
 
 import { Expense, ScheduleItem } from "@/lib/types";
 import { categoryColor } from "@/lib/scheduleUtils";
-import { formatAmount } from "@/lib/currency";
 import Emoji from "./Emoji";
+import { PhotoThumbs } from "./PhotoAttach";
 
 interface Props {
   item: ScheduleItem;
@@ -42,16 +42,15 @@ export default function ScheduleItemCard({
   const isFlight = item.kind === "flight";
   const flight = item.flight;
   const color = categoryColor(item.category);
-  const expenseTotal = linkedExpenses.reduce((sum, e) => sum + e.amountKRW, 0);
 
   return (
     <div className={`relative flex items-stretch gap-3 pl-1 ${dragging ? "z-20" : ""}`}>
       {/* 왼쪽 세로 타임라인: 번호 원(장소) 또는 메모 아이콘을 카드 세로 가운데에 두고,
           위·아래 항목과 이어지는 세로선을 그린다. */}
       <div className="relative flex w-8 shrink-0 flex-col items-center justify-center">
-        {lineTop && <span className="absolute left-1/2 top-0 h-1/2 w-[2px] -translate-x-1/2 bg-ink-400" aria-hidden />}
+        {lineTop && <span className="absolute left-1/2 top-0 h-1/2 w-[2px] -translate-x-1/2 bg-[#bcc2ca]" aria-hidden />}
         {lineBottom && (
-          <span className="absolute bottom-0 left-1/2 top-1/2 w-[2px] -translate-x-1/2 bg-ink-400" aria-hidden />
+          <span className="absolute bottom-0 left-1/2 top-1/2 w-[2px] -translate-x-1/2 bg-[#bcc2ca]" aria-hidden />
         )}
         {isMemo ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-100 text-sm">
@@ -130,30 +129,34 @@ export default function ScheduleItemCard({
                 )}
               </>
             ) : isMemo ? (
-              <p
-                className={`break-words text-sm text-ink-700 ${
-                  reorderMode ? "truncate" : "whitespace-pre-wrap"
-                }`}
-              >
-                {item.memo}
-              </p>
+              <>
+                {item.memo && (
+                  <p
+                    className={`break-words text-sm text-ink-700 ${
+                      reorderMode ? "truncate" : "whitespace-pre-wrap"
+                    }`}
+                  >
+                    {item.memo}
+                  </p>
+                )}
+                {!reorderMode && (item.photos?.length ?? 0) > 0 && (
+                  <div onClick={(e) => e.stopPropagation()} className={item.memo ? "mt-1.5" : ""}>
+                    <PhotoThumbs photos={item.photos!} size={56} />
+                  </div>
+                )}
+                {reorderMode && !item.memo && (item.photos?.length ?? 0) > 0 && (
+                  <p className="text-sm text-ink-500">사진 {item.photos!.length}장</p>
+                )}
+              </>
             ) : (
+              // 장소: 이름 아래에 카테고리와 메모만 보여준다
               <>
                 <div className="flex items-center gap-1.5">
                   <span className="truncate font-semibold text-ink-900">{item.name}</span>
                 </div>
-                <p className="mt-0.5 truncate text-xs text-ink-500">
-                  {item.category}
-                  {item.address ? ` · ${item.address}` : ""}
-                </p>
+                <p className="mt-0.5 truncate text-xs text-ink-500">{item.category}</p>
                 {!reorderMode && item.memo && (
-                  <p className="mt-1 text-xs text-ink-400 line-clamp-2">{item.memo}</p>
-                )}
-
-                {!reorderMode && expenseTotal > 0 && (
-                  <p className="mt-1.5 inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">
-                    💰 지출 {formatAmount(expenseTotal, "KRW")}
-                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-xs text-ink-400 line-clamp-2">{item.memo}</p>
                 )}
               </>
             )}

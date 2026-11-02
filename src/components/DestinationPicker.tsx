@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DESTINATION_REGIONS, findDestination, searchDestinations, type Destination } from "@/lib/destinations";
 import Emoji from "./Emoji";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 interface Props {
   open: boolean;
@@ -15,6 +16,7 @@ interface Props {
 // 여러 도시를 눌러서 고르고(다시 누르면 해제) 아래 "선택 완료"로 저장한다.
 // 첫 번째로 고른 도시가 대표 여행지(지도 시작 위치·기본 통화)가 된다.
 export default function DestinationPicker({ open, selected, onClose, onConfirm }: Props) {
+  useBackToClose(open, onClose);
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState(DESTINATION_REGIONS[0].region);
   const [picked, setPicked] = useState<string[]>([]);

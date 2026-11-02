@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── 기기별 화면 맞춤 (아이폰·갤럭시 앱/웹, PC 웹) ───────────────────── */
+:root {
+  /* 삼성 인터넷·크롬의 "강제 다크 모드"가 색을 멋대로 뒤집지 않게 밝은 화면으로 고정 */
+  color-scheme: light;
+}
+
+html {
+  /* 가로로 돌렸을 때 아이폰이 글자를 멋대로 키우지 않게 */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body {
   height: 100%;
@@ -11,6 +23,33 @@ body {
   background-color: #f7f8fa;
   color: #111827;
   -webkit-tap-highlight-color: transparent;
+  /* 좁은 화면에서 옆으로 밀리는(가로 스크롤) 현상 방지 */
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  /* 아이폰을 가로로 돌렸을 때 노치 쪽으로 내용이 가려지지 않게 */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* 휴대폰 주소창이 나타났다 사라져도 화면 높이가 맞도록(지원하는 브라우저에서) */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+  .h-screen {
+    height: 100dvh;
+  }
+}
+
+/* 버튼·링크 두 번 눌러 확대되는 지연 없애기 */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+img {
+  -webkit-user-drag: none;
 }
 
 /* 모바일 사파리 관성 스크롤 */

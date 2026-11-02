@@ -6,6 +6,7 @@ import { guessAirline, normalizeFlightNo } from "@/lib/airlines";
 import ClearableInput from "./ClearableInput";
 import TimeField from "./TimeField";
 import Emoji from "./Emoji";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 interface Props {
   open: boolean;
@@ -23,6 +24,7 @@ interface Props {
 // 지금은 직접 입력이고, 편명을 넣으면 항공사 이름만 자동으로 채워준다
 // (나중에 항공편 조회 API를 붙이면 공항/시각도 자동 입력하도록 확장할 수 있다).
 export default function FlightModal({ open, day, initial, onClose, onSave, onDelete }: Props) {
+  useBackToClose(open, onClose);
   const [flightNo, setFlightNo] = useState("");
   const [airline, setAirline] = useState("");
   const [airlineTouched, setAirlineTouched] = useState(false);

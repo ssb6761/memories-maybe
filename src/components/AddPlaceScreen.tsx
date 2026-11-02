@@ -26,6 +26,7 @@ import {
 } from "@/lib/placeHistory";
 import ClearableInput from "./ClearableInput";
 import Emoji from "./Emoji";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 // 장소 추가 화면 지도에 미리 찍어둘 "지금 보고 있는 DAY에 이미 넣은 장소"
 export interface SavedPlacePin {
@@ -74,6 +75,7 @@ type Step = "browse" | "search" | "customSearch" | "mapPick" | "confirm";
 // 직접 위치를 찍어(mapPick) 등록할 수 있고, 그 뒤 카테고리/시간을 골라(confirm) 바로
 // 일정에 추가한다.
 export default function AddPlaceScreen({ open, day, savedPlaces = [], destination, onClose, onAdd }: Props) {
+  useBackToClose(open, onClose);
   const { mode, search, getDetail } = useGooglePlaceSearch();
   const [stepStack, setStepStack] = useState<Step[]>(["browse"]);
   const step = stepStack[stepStack.length - 1];

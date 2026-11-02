@@ -44,7 +44,7 @@ export function rowToTrip(row: any, travelers: any[]) {
     destination: row.destination ?? undefined,
     startDate: row.start_date,
     endDate: row.end_date,
-    coverEmoji: row.cover_emoji ?? undefined,
+    coverEmoji: row.cover_emoji || undefined, // "" = 기본(여행지 국기)로 되돌림
     extraPeople: safeJsonArray(row.extra_people),
     version: row.version,
     travelers: travelers.map(rowToTraveler),
@@ -82,6 +82,7 @@ export function rowToScheduleItem(row: any) {
     cost: row.cost ?? undefined,
     currency: row.currency ?? undefined,
     transportToNext: row.transport_to_next ?? undefined,
+    photos: safeJsonArray(row.photos_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -109,6 +110,8 @@ export function rowToExpense(row: any) {
     importKey: row.import_key ?? undefined,
     paymentMethod: row.payment_method ?? undefined,
     sortOrder: row.sort_order ?? undefined,
+    memo: row.memo ?? undefined,
+    photos: safeJsonArray(row.photos_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

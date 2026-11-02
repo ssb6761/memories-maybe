@@ -2,9 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { CATEGORY_OPTIONS, Category, ScheduleItem } from "@/lib/types";
-import PlaceSearchInput from "./PlaceSearchInput";
 import TimeField from "./TimeField";
 import ClearableInput from "./ClearableInput";
+import { useBackToClose } from "@/lib/useBackToClose";
 
 interface Props {
   open: boolean;
@@ -19,9 +19,10 @@ interface Props {
   onAddExpense?: () => void;
 }
 
-// 일정 수정 화면. 참고 비용 · 다음 장소로 이동수단 · 예약 완료 칸은 없앴다.
-// (예전에 입력해둔 값은 지워지지 않도록 저장할 때 그대로 다시 보낸다.)
+// 일정 수정 화면: 장소명 · 시간 · 카테고리 · 메모만 고친다. 장소 검색 · 주소 칸은 없앴다
+// (위치는 장소를 추가할 때 정해지고, 예전 주소·좌표 값은 지워지지 않게 그대로 다시 보낸다).
 export default function ScheduleItemModal({ open, day, initial, onClose, onSave, onDelete, onAddExpense }: Props) {
+  useBackToClose(open, onClose);
   const [name, setName] = useState("");
   const [category, setCategory] = useState<Category>("관광");
   const [time, setTime] = useState("");
@@ -101,7 +102,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center">
       <form
         onSubmit={handleSubmit}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 pb-12 shadow-pop animate-fade-in md:rounded-2xl md:pb-5"
+        className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 pb-12 shadow-pop animate-fade-in md:rounded-2xl md:pb-5"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">
@@ -113,18 +114,6 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
         </div>
 
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-ink-500">장소 검색</label>
-            <PlaceSearchInput
-              onSelect={(p) => {
-                setName(p.name);
-                setAddress(p.address);
-                setLat(String(p.lat));
-                setLng(String(p.lng));
-              }}
-            />
-          </div>
-
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">장소명 *</label>
             <ClearableInput value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
@@ -152,18 +141,6 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
               </select>
             </div>
           </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-ink-500">주소</label>
-            <ClearableInput value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
-          </div>
-
-          {!lat && !lng && (
-            <p className="text-[11px] text-ink-400">
-              위 "장소 검색"에서 고르지 않고 이름을 직접 입력한 경우, 좌표가 없어 지도에는
-              표시되지 않지만 일정에는 정상적으로 저장돼요.
-            </p>
-          )}
 
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-500">메모</label>

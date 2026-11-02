@@ -33,6 +33,15 @@ export const CURRENCY_OPTIONS: CurrencyOption[] = [
   { code: "ISK", name: "아이슬란드 크로나" },
   { code: "TRY", name: "리라" },
   { code: "AED", name: "디르함" },
+  { code: "LAK", name: "킵" },
+  { code: "KHR", name: "리엘" },
+  { code: "MOP", name: "파타카" },
+  { code: "MNT", name: "투그릭" },
+  { code: "NPR", name: "네팔 루피" },
+  { code: "EGP", name: "이집트 파운드" },
+  { code: "KZT", name: "텡게" },
+  { code: "RUB", name: "루블" },
+  { code: "MVR", name: "루피야" },
 ];
 
 export function currencyName(code: string) {
@@ -78,6 +87,11 @@ const COUNTRY_CURRENCY: Record<string, string> = {
   아이슬란드: "ISK",
   아랍에미리트: "AED",
   몰디브: "USD",
+  몽골: "MNT",
+  네팔: "NPR",
+  이집트: "EGP",
+  카자흐스탄: "KZT",
+  러시아: "RUB",
 };
 
 export function currencyForCountry(country?: string): string | undefined {

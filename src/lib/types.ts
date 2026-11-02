@@ -91,6 +91,7 @@ export interface ScheduleItem {
   cost?: number; // 원화 기준 참고 비용(직접 입력, 가계부와 별개로 빠르게 보여주기 위함)
   currency?: string;
   transportToNext?: TransportMode; // 이 장소에서 "다음" 장소로 이동할 때 사용하는 수단
+  photos?: string[]; // 메모에 붙인 사진 id (최대 10장)
   distanceToNextKm?: number; // 자동 계산되지만 수동 보정 가능하도록 저장
   durationToNextMin?: number;
   createdAt: string;
@@ -118,6 +119,8 @@ export interface Expense {
   importKey?: string; // CSV 중복 확인용 해시
   paymentMethod?: string; // 결제수단: "현금" | "카드"
   sortOrder?: number; // 가계부 편집에서 정한 순서 (없으면 입력 순서)
+  memo?: string; // 메모
+  photos?: string[]; // 사진 id (최대 10장)
   createdAt: string;
   updatedAt: string;
 }

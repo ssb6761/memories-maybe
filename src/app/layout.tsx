@@ -25,6 +25,9 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#7B68EE",
+  // 아이폰 노치·홈 바 영역까지 화면을 쓰고, 그만큼은 safe-area 여백으로 비켜 둔다.
+  viewportFit: "cover",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

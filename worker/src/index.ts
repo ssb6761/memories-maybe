@@ -55,6 +55,18 @@ const REQUIRED_TABLES = [
     PRIMARY KEY (trip_id, user_id)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_members_user ON trip_members(user_id)`,
+  // 메모·가계부에 붙이는 사진. 줄인 JPEG를 base64로 저장한다(한 장 최대 약 1.5MB).
+  `CREATE TABLE IF NOT EXISTS photos (
+    id TEXT PRIMARY KEY,
+    trip_id TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_photos_trip ON photos(trip_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_schedule_trip ON schedule_items(trip_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_expenses_trip ON expenses(trip_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_travelers_trip ON travelers(trip_id)`,
 ];
 
 const REQUIRED_COLUMNS: Record<string, Record<string, string>> = {
@@ -67,35 +79,49 @@ const REQUIRED_COLUMNS: Record<string, Record<string, string>> = {
   schedule_items: {
     kind: "TEXT NOT NULL DEFAULT 'place'",
     flight_json: "TEXT",
+    photos_json: "TEXT", // 사진 id 목록(JSON 배열)
   },
   expenses: {
     payment_method: "TEXT",
     sort_order: "INTEGER", // 가계부 편집에서 정한 순서 (없으면 입력 순서)
+    memo: "TEXT",
+    photos_json: "TEXT",
   },
 };
 let schemaReady: Promise<void> | null = null;
 
 function ensureSchema(db: D1Database): Promise<void> {
   if (!schemaReady) {
+    // 예전엔 질문을 하나씩 순서대로 보내서(10번 넘게 왕복) 첫 요청이 느렸다. 한 번에 묶어 보낸다.
     schemaReady = (async () => {
-      for (const sql of REQUIRED_TABLES) {
-        await db.prepare(sql).run();
-      }
-      for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
-        const info = await db.prepare(`PRAGMA table_info(${table})`).all<any>();
-        const existing = new Set((info.results ?? []).map((c: any) => c.name));
-        for (const [col, def] of Object.entries(columns)) {
-          if (!existing.has(col)) {
-            await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`).run();
-          }
+      const tables = Object.keys(REQUIRED_COLUMNS);
+      const results = await db.batch([
+        ...REQUIRED_TABLES.map((sql) => db.prepare(sql)),
+        ...tables.map((t) => db.prepare(`PRAGMA table_info(${t})`)),
+      ]);
+      const infos = results.slice(REQUIRED_TABLES.length);
+      const alters: D1PreparedStatement[] = [];
+      tables.forEach((table, i) => {
+        const existing = new Set(((infos[i] as any)?.results ?? []).map((c: any) => c.name));
+        for (const [col, def] of Object.entries(REQUIRED_COLUMNS[table])) {
+          if (!existing.has(col)) alters.push(db.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`));
         }
-      }
+      });
+      if (alters.length) await db.batch(alters);
     })().catch((err) => {
       schemaReady = null; // 실패하면 다음 요청 때 다시 시도
       throw err;
     });
   }
   return schemaReady;
+}
+
+// 사진 id 목록 → 저장용 JSON (최대 10장, 형식이 맞는 id만)
+// (사진 목록을 안 보낸 수정 요청이면 null → 기존 사진을 그대로 둔다. 빈 배열이면 모두 뺀다.)
+function photosToJson(v: unknown): string | null {
+  if (!Array.isArray(v)) return null;
+  const ids = v.filter((x) => typeof x === "string" && /^ph_[a-f0-9]{32}$/.test(x)).slice(0, 10);
+  return JSON.stringify(ids);
 }
 
 function unauthorized(): Response {
@@ -193,6 +219,23 @@ export default {
     try {
       await ensureSchema(db);
       const user = await getAuthUser(request, db);
+
+      // GET /api/photos/:id — 사진 보기. <img>로 바로 띄우므로 로그인 없이 열린다
+      // (id가 길고 예측할 수 없는 값이라 링크를 아는 사람만 볼 수 있다).
+      if (parts.length === 3 && parts[1] === "photos" && method === "GET") {
+        const row = await db.prepare(`SELECT mime, data FROM photos WHERE id = ?`).bind(parts[2]).first<any>();
+        if (!row) return notFound("사진을 찾을 수 없어요.");
+        const raw = atob(row.data);
+        const bin = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+        return new Response(bin, {
+          headers: {
+            "Content-Type": row.mime,
+            "Cache-Control": "public, max-age=31536000, immutable",
+            ...CORS_HEADERS,
+          },
+        });
+      }
 
       // GET /api/me — 지금 로그인한 사용자
       if (parts.length === 2 && parts[1] === "me" && method === "GET") {
@@ -429,10 +472,19 @@ export default {
       // 이 아래 라우트는 모두 :shareId 를 가진다
       if (parts.length >= 3) {
         const shareId = parts[2];
-        const tripRow = await getTripRowByShareId(db, shareId);
-        if (!tripRow) return notFound("해당 공유 코드의 여행을 찾을 수 없어요.");
+        // 여행 정보와 내 멤버 자격을 한 번에 조회한다(왕복 횟수 줄이기)
+        const joined = await db
+          .prepare(
+            `SELECT t.*, m.role AS __member_role FROM trips t
+             LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ?
+             WHERE t.share_id = ?`
+          )
+          .bind(user.id, shareId)
+          .first<any>();
+        if (!joined) return notFound("해당 공유 코드의 여행을 찾을 수 없어요.");
+        const { __member_role, ...tripRow } = joined;
         const tripId = tripRow.id as string;
-        const membership = await getMembership(db, tripId, user.id);
+        const membership = __member_role ? { role: __member_role as string } : null;
 
         // GET /api/trips/:shareId/preview — 초대 화면용 기본 정보 (멤버가 아니어도 볼 수 있음)
         if (parts.length === 4 && parts[3] === "preview" && method === "GET") {
@@ -485,9 +537,24 @@ export default {
             db.prepare(`DELETE FROM schedule_items WHERE trip_id = ?`).bind(tripId),
             db.prepare(`DELETE FROM travelers WHERE trip_id = ?`).bind(tripId),
             db.prepare(`DELETE FROM trip_members WHERE trip_id = ?`).bind(tripId),
+            db.prepare(`DELETE FROM photos WHERE trip_id = ?`).bind(tripId),
             db.prepare(`DELETE FROM trips WHERE id = ?`).bind(tripId),
           ]);
           return json({ ok: true });
+        }
+
+        // POST /api/trips/:shareId/photos  { dataUrl } — 사진 올리기 → { id }
+        if (parts.length === 4 && parts[3] === "photos" && method === "POST") {
+          const body = await request.json<any>();
+          const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(body.dataUrl ?? ""));
+          if (!m) return json({ error: "사진 형식이 올바르지 않아요." }, 400);
+          if (m[2].length > 1_500_000) return json({ error: "사진 용량이 너무 커요." }, 413);
+          const id = `ph_${crypto.randomUUID().replace(/-/g, "")}`;
+          await db
+            .prepare(`INSERT INTO photos (id, trip_id, mime, data, created_at) VALUES (?, ?, ?, ?, ?)`)
+            .bind(id, tripId, m[1], m[2], nowIso())
+            .run();
+          return json({ id });
         }
 
         // GET /api/trips/:shareId
@@ -567,17 +634,18 @@ export default {
           const kind = body.kind === "memo" || body.kind === "flight" ? body.kind : "place";
           // 항공편 세부 정보(편명/공항/도착 시각 등)는 JSON 문자열로 한 칸에 저장한다.
           const flightJson = kind === "flight" && body.flight ? JSON.stringify(body.flight) : null;
+          const photosJson = photosToJson(body.photos);
 
           if (body.id) {
             await db
               .prepare(
                 `UPDATE schedule_items SET day=?, time=?, name=?, category=?, kind=?, address=?, lat=?, lng=?, memo=?,
-                 reserved=?, cost=?, currency=?, transport_to_next=?, flight_json=?, updated_at=? WHERE id=? AND trip_id=?`
+                 reserved=?, cost=?, currency=?, transport_to_next=?, flight_json=?, photos_json=COALESCE(?, photos_json), updated_at=? WHERE id=? AND trip_id=?`
               )
               .bind(
                 body.day, body.time ?? null, body.name, body.category, kind, body.address ?? null,
                 body.lat ?? null, body.lng ?? null, body.memo ?? null, body.reserved ? 1 : 0,
-                body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, flightJson, now, body.id, tripId
+                body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, flightJson, photosJson, now, body.id, tripId
               )
               .run();
           } else {
@@ -588,13 +656,13 @@ export default {
             const id = newId("sch");
             await db
               .prepare(
-                `INSERT INTO schedule_items (id, trip_id, day, order_num, time, name, category, kind, address, lat, lng, memo, reserved, cost, currency, transport_to_next, flight_json, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                `INSERT INTO schedule_items (id, trip_id, day, order_num, time, name, category, kind, address, lat, lng, memo, reserved, cost, currency, transport_to_next, flight_json, photos_json, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
               )
               .bind(
                 id, tripId, body.day, (maxRow?.m ?? 0) + 1, body.time ?? null, body.name, body.category, kind,
                 body.address ?? null, body.lat ?? null, body.lng ?? null, body.memo ?? null,
-                body.reserved ? 1 : 0, body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, flightJson, now, now
+                body.reserved ? 1 : 0, body.cost ?? null, body.currency ?? null, body.transportToNext ?? null, flightJson, photosJson, now, now
               )
               .run();
           }
@@ -616,11 +684,15 @@ export default {
         if (parts.length === 5 && parts[3] === "schedule" && parts[4] === "reorder" && method === "POST") {
           const body = await request.json<any>();
           const orderedIds: string[] = body.orderedIds ?? [];
-          for (let i = 0; i < orderedIds.length; i++) {
-            await db
-              .prepare(`UPDATE schedule_items SET order_num = ?, updated_at = ? WHERE id = ? AND trip_id = ? AND day = ?`)
-              .bind(i + 1, nowIso(), orderedIds[i], tripId, body.day)
-              .run();
+          const now = nowIso();
+          if (orderedIds.length) {
+            await db.batch(
+              orderedIds.map((id, i) =>
+                db
+                  .prepare(`UPDATE schedule_items SET order_num = ?, updated_at = ? WHERE id = ? AND trip_id = ? AND day = ?`)
+                  .bind(i + 1, now, id, tripId, body.day)
+              )
+            );
           }
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
@@ -639,14 +711,15 @@ export default {
               .prepare(
                 `UPDATE expenses SET day=?, title=?, category=?, amount=?, currency=?, rate_to_krw=?, amount_krw=?,
                  place=?, schedule_item_id=?, private_only=?, paid_by=?, paid_by_count=?, split_with=?, split_count=?,
-                 payment_method=?, updated_at=?
+                 payment_method=?, memo=?, photos_json=COALESCE(?, photos_json), updated_at=?
                  WHERE id=? AND trip_id=?`
               )
               .bind(
                 body.day ?? null, body.title, body.category, body.amount, body.currency, body.rateToKRW ?? 1,
                 body.amountKRW ?? Math.round(body.amount * (body.rateToKRW ?? 1)), body.place ?? null,
                 body.scheduleItemId ?? null, body.privateOnly ? 1 : 0, paidBy, body.paidByCount ?? 1,
-                splitWith, body.splitCount ?? 1, body.paymentMethod ?? null, now, body.id, tripId
+                splitWith, body.splitCount ?? 1, body.paymentMethod ?? null, body.memo ?? null, photosToJson(body.photos),
+                now, body.id, tripId
               )
               .run();
           } else {
@@ -655,15 +728,15 @@ export default {
               .prepare(
                 `INSERT INTO expenses (id, trip_id, day, title, category, amount, currency, rate_to_krw, amount_krw, place,
                  schedule_item_id, private_only, paid_by, paid_by_count, split_with, split_count, source, import_key,
-                 payment_method, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 payment_method, memo, photos_json, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
               )
               .bind(
                 id, tripId, body.day ?? null, body.title, body.category, body.amount, body.currency,
                 body.rateToKRW ?? 1, body.amountKRW ?? Math.round(body.amount * (body.rateToKRW ?? 1)),
                 body.place ?? null, body.scheduleItemId ?? null, body.privateOnly ? 1 : 0, paidBy,
                 body.paidByCount ?? 1, splitWith, body.splitCount ?? 1, body.source ?? "manual", body.importKey ?? null,
-                body.paymentMethod ?? null, now, now
+                body.paymentMethod ?? null, body.memo ?? null, photosToJson(body.photos), now, now
               )
               .run();
           }

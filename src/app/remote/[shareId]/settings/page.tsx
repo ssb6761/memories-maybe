@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useRemoteTrip } from "@/lib/useRemoteTrip";
+import { clearTripCache, useRemoteTrip } from "@/lib/useRemoteTrip";
 import ClearableInput from "@/components/ClearableInput";
 import DestinationPicker from "@/components/DestinationPicker";
 import DateRangePicker, { formatNights, formatShortDate } from "@/components/DateRangePicker";
@@ -11,6 +11,7 @@ import { useAuthUser } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { TravelerAvatar } from "@/components/TravelerBadge";
 import Emoji from "@/components/Emoji";
+import EmojiPicker from "@/components/EmojiPicker";
 
 export default function RemoteSettingsPage({ params }: { params: { shareId: string } }) {
   const { trip, loaded, updateTrip } = useRemoteTrip(params.shareId);
@@ -20,19 +21,24 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
   const [deleting, setDeleting] = useState(false);
 
   const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState(""); // "" = 기본(여행지 국기)
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [destinationPickerOpen, setDestinationPickerOpen] = useState(false);
 
+  // 다른 사람이 여행 정보를 바꿨을 때(버전이 바뀔 때)만 입력 칸을 다시 채운다.
   useEffect(() => {
     if (!trip) return;
     setName(trip.name);
+    setEmoji(trip.coverEmoji ?? "");
     setDestination(trip.destination ?? "");
     setStartDate(trip.startDate);
     setEndDate(trip.endDate);
-  }, [trip, params.shareId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip?.id, trip?.version, params.shareId]);
 
   if (!loaded || !trip) {
     return <div className="py-20 text-center text-sm text-ink-500">불러오는 중...</div>;
@@ -50,6 +56,7 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
     }
     const unchanged =
       nextName === trip.name &&
+      emoji === (trip.coverEmoji ?? "") &&
       destination === (trip.destination ?? "") &&
       startDate === trip.startDate &&
       endDate === trip.endDate;
@@ -59,7 +66,7 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
     }
     setSaving(true);
     try {
-      await updateTrip({ name: nextName, destination, startDate, endDate });
+      await updateTrip({ name: nextName, destination, startDate, endDate, coverEmoji: emoji });
       alert("저장되었습니다.");
     } catch (err: any) {
       alert(err?.message ?? "저장하지 못했어요. 다시 시도해주세요.");
@@ -74,6 +81,11 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
     setDeleting(true);
     try {
       await api.deleteTrip(params.shareId);
+      clearTripCache(params.shareId);
+      try {
+        const list = JSON.parse(localStorage.getItem("mm:trips") ?? "[]");
+        localStorage.setItem("mm:trips", JSON.stringify(list.filter((t: any) => t.shareId !== params.shareId)));
+      } catch {}
       alert("여행이 삭제되었습니다.");
       router.replace("/trips");
     } catch (err: any) {
@@ -91,12 +103,25 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
         <h2 className="mb-3 text-sm font-bold text-ink-900">여행 정보</h2>
         <form onSubmit={handleSaveInfo} className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-ink-500">여행 이름</label>
-            <ClearableInput
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-ink-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-            />
+            <label className="mb-1 block text-xs font-medium text-ink-500">여행 아이콘 · 이름</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setEmojiOpen(true)}
+                className="relative flex h-[42px] w-[52px] shrink-0 items-center justify-center rounded-xl border border-ink-300 bg-white"
+                aria-label="여행 아이콘 바꾸기"
+              >
+                <Emoji e={emoji || findDestination(destination)?.flag || "✈️"} size={24} />
+                <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-ink-700 text-[9px] text-white">
+                  ✎
+                </span>
+              </button>
+              <ClearableInput
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="flex-1 h-[42px] rounded-xl border border-ink-300 px-3 text-sm outline-none focus:border-brand-500"
+              />
+            </div>
           </div>
           {/* 여행지: 누르면 여행지 선택 화면(여러 곳 선택 가능) */}
           <div>
@@ -177,6 +202,13 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
         </p>
       </section>
 
+      <EmojiPicker
+        open={emojiOpen}
+        current={emoji || undefined}
+        fallback={findDestination(destination)?.flag ?? "✈️"}
+        onClose={() => setEmojiOpen(false)}
+        onPick={(e) => setEmoji(e)}
+      />
       <DestinationPicker
         open={destinationPickerOpen}
         selected={splitDestinations(destination)}
@@ -206,7 +238,7 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
             disabled={deleting}
             className="mt-3 w-full rounded-xl border border-red-300 bg-white py-2.5 text-sm font-semibold text-red-500 active:scale-[0.99] disabled:opacity-60"
           >
-            {deleting ? "삭제 중..." : "이 여행 삭제"}
+            {deleting ? "삭제 중..." : "여행 삭제"}
           </button>
         </section>
       )}

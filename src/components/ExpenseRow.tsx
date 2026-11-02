@@ -79,7 +79,14 @@ export default function ExpenseRow({
         <p className="mt-0.5 truncate text-xs text-ink-500">
           {expense.paymentMethod ? `${expense.paymentMethod} · ` : ""}
           결제: {expense.paidBy.join(", ") || "-"}
+          {expense.place ? ` · ${expense.place}` : ""}
         </p>
+        {!editMode && (expense.memo || (expense.photos?.length ?? 0) > 0) && (
+          <p className="mt-0.5 truncate text-xs text-ink-400">
+            {(expense.photos?.length ?? 0) > 0 ? `📷 ${expense.photos!.length} ` : ""}
+            {expense.memo ?? ""}
+          </p>
+        )}
       </div>
       {editMode ? (
         dragHandleProps ? (

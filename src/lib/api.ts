@@ -104,6 +104,10 @@ export const api = {
     return request(`/api/trips/${shareId}/join`, { method: "POST" });
   },
 
+  uploadPhoto(shareId: string, dataUrl: string): Promise<{ id: string }> {
+    return request(`/api/trips/${shareId}/photos`, { method: "POST", body: JSON.stringify({ dataUrl }) });
+  },
+
   deleteTrip(shareId: string): Promise<{ ok: boolean }> {
     return request(`/api/trips/${shareId}`, { method: "DELETE" });
   },
@@ -199,3 +203,8 @@ export const api = {
     });
   },
 };
+
+// 사진 id → 화면에 띄울 주소
+export function photoUrl(id: string) {
+  return `${baseUrl()}/api/photos/${id}`;
+}

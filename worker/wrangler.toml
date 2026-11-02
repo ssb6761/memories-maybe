@@ -2,6 +2,10 @@ name = "memories-maybe-api"
 main = "src/index.ts"
 compatibility_date = "2024-09-25"
 
+# Worker를 데이터베이스(D1)와 가까운 곳에서 실행해서 응답을 빠르게 한다.
+[placement]
+mode = "smart"
+
 # wrangler d1 create memories-maybe-db 실행 후 아래 database_id 값을
 # 콘솔에 출력된 실제 값으로 바꿔주세요 (README-worker.md 참고).
 #
