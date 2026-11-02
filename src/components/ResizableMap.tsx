@@ -8,13 +8,24 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 const MIN_H = 120;
 const DEFAULT_H = 208;
 
-function maxHeight() {
-  if (typeof window === "undefined") return 520;
-  // 화면 높이의 70% (위쪽 머리글·날짜 칸을 빼고 일정이 조금은 보이게)
-  return Math.max(DEFAULT_H + 80, Math.round(window.innerHeight * 0.7));
+const HANDLE_H = 28;
+const LIST_PEEK = 72; // 지도를 가장 크게 해도 일정 목록이 이만큼은 보이게
+
+// 가장 크게 했을 때의 지도 높이: 화면에서 지도 위쪽(머리글·날짜 칸)과 아래 탭 바를 빼고,
+// 손잡이와 일정 목록 윗부분이 항상 화면 안에 보이도록 계산한다.
+// (예전엔 화면 높이의 70%로 잡아서, 위쪽 칸까지 더하면 손잡이가 아래 탭 바 뒤로 숨어버렸다.)
+function maxHeightFor(el: HTMLElement | null) {
+  if (typeof window === "undefined" || !el) return 420;
+  const top = el.getBoundingClientRect().top + window.scrollY;
+  const nav = document.querySelector("nav");
+  const navH = nav && getComputedStyle(nav).position === "fixed" ? nav.getBoundingClientRect().height : 0;
+  const room = window.innerHeight - top - navH - HANDLE_H - LIST_PEEK;
+  return Math.max(DEFAULT_H, Math.round(room));
 }
 
 export default function ResizableMap({ children }: { children: ReactNode }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const maxHeight = () => maxHeightFor(wrapRef.current);
   const [height, setHeight] = useState(DEFAULT_H);
   const [dragging, setDragging] = useState(false);
   const start = useRef<{ y: number; h: number; moved: boolean } | null>(null);
@@ -25,6 +36,13 @@ export default function ResizableMap({ children }: { children: ReactNode }) {
       const saved = Number(localStorage.getItem("mm:mapHeight"));
       if (saved >= MIN_H) setHeight(Math.min(saved, maxHeight()));
     } catch {}
+    // 화면을 돌리거나 주소창이 바뀌어 높이가 줄면 손잡이가 화면 밖으로 나가지 않게 다시 맞춘다
+    function onResize() {
+      setHeight((h) => Math.min(h, maxHeight()));
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function save(h: number) {
@@ -77,7 +95,7 @@ export default function ResizableMap({ children }: { children: ReactNode }) {
   }, [dragging]);
 
   return (
-    <div className="md:hidden">
+    <div ref={wrapRef} className="md:hidden">
       <div
         className={`overflow-hidden ${dragging ? "" : "transition-[height] duration-200 ease-out"}`}
         style={{ height }}
