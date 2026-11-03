@@ -124,6 +124,66 @@ function extractKRW(json: any): RateResult | null {
   return null;
 }
 
+// ── 빠르게 불러오기 ──
+// 예전엔 환율 서버(Frankfurter)에 매번 처음부터 묻고, 첫 주소가 실패해야 두 번째 주소를 순서대로
+// 시도했다. 새로 만든 여행은 기기에 저장된 환율도 없어서 서버 응답(때로 몇 초)을 그대로 기다렸다.
+//  1) 받아 온 환율을 기기에 저장해 두고(지난 날짜는 계속, 오늘 환율은 6시간) 바로 쓴다.
+//  2) 두 주소에 동시에 물어보고 먼저 온 답을 쓴다. 너무 오래 걸리면(6초) 포기한다.
+//  3) 가계부 화면을 열 때 미리 불러 둔다(prefetchRate).
+const STORE_KEY = "mm:rates";
+const LATEST_TTL = 6 * 60 * 60 * 1000;
+const inflight = new Map<string, Promise<RateResult>>();
+
+function readStore(): Record<string, RateResult & { at: number }> {
+  try {
+    return JSON.parse(localStorage.getItem(STORE_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+function writeStore(key: string, r: RateResult) {
+  try {
+    const all = readStore();
+    all[key] = { ...r, at: Date.now() };
+    localStorage.setItem(STORE_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+// 저장된 환율이 있으면 바로 돌려준다(오래된 오늘 환율이라도 일단 보여주기용). 없으면 undefined.
+export function cachedRateToKRW(code: string, date?: string): RateResult | undefined {
+  if (code === "KRW") return { rate: 1, date: date ?? todayISO() };
+  const today = todayISO();
+  const target = !date || date > today ? "latest" : date;
+  const key = `${code}:${target}`;
+  return cache.get(key) ?? readStore()[key];
+}
+
+function fetchWithTimeout(url: string, ms: number): Promise<RateResult> {
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+  const timer = setTimeout(() => ctrl?.abort(), ms);
+  return fetch(url, { signal: ctrl?.signal })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(String(res.status));
+      const found = extractKRW(await res.json());
+      if (!found || !(found.rate > 0)) throw new Error("no rate");
+      return found;
+    })
+    .finally(() => clearTimeout(timer));
+}
+
+// 여러 요청 중 먼저 성공한 것 (모두 실패하면 실패)
+function firstSuccess<T>(list: Promise<T>[]): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let failed = 0;
+    list.forEach((p) =>
+      p.then(resolve, () => {
+        failed++;
+        if (failed === list.length) reject(new Error("환율을 불러오지 못했어요."));
+      })
+    );
+  });
+}
+
 // code 통화 1단위가 date(yyyy-mm-dd) 기준 몇 원인지. date가 없거나 미래면 최신 환율.
 export async function fetchRateToKRW(code: string, date?: string): Promise<RateResult> {
   const today = todayISO();
@@ -132,6 +192,14 @@ export async function fetchRateToKRW(code: string, date?: string): Promise<RateR
   const key = `${code}:${target}`;
   const cached = cache.get(key);
   if (cached) return cached;
+  const stored = readStore()[key];
+  if (stored && (target !== "latest" || Date.now() - stored.at < LATEST_TTL)) {
+    const r = { rate: stored.rate, date: stored.date };
+    cache.set(key, r);
+    return r;
+  }
+  const running = inflight.get(key);
+  if (running) return running;
 
   const urls = [
     `https://api.frankfurter.dev/v1/${target}?base=${code}&symbols=KRW`,
@@ -139,21 +207,27 @@ export async function fetchRateToKRW(code: string, date?: string): Promise<RateR
       ? `https://api.frankfurter.dev/v2/rates?base=${code}&quotes=KRW`
       : `https://api.frankfurter.dev/v2/rates?date=${target}&base=${code}&quotes=KRW`,
   ];
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const found = extractKRW(await res.json());
-      if (found && found.rate > 0) {
-        const result = { rate: found.rate, date: found.date ?? (target === "latest" ? today : target) };
-        cache.set(key, result);
-        return result;
-      }
-    } catch {
-      // 다음 주소로 재시도
-    }
-  }
-  throw new Error("환율을 불러오지 못했어요.");
+  const job = firstSuccess(urls.map((u) => fetchWithTimeout(u, 6000)))
+    .then((found) => {
+      const result = { rate: found.rate, date: found.date ?? (target === "latest" ? today : target) };
+      cache.set(key, result);
+      writeStore(key, result);
+      return result;
+    })
+    .catch((err) => {
+      // 서버가 안 되면 예전에 저장해 둔 환율이라도 쓴다
+      if (stored) return { rate: stored.rate, date: stored.date };
+      throw err;
+    })
+    .finally(() => inflight.delete(key));
+  inflight.set(key, job);
+  return job;
+}
+
+// 가계부 화면을 열 때 미리 불러 둔다(비용 추가를 누르면 바로 보이게)
+export function prefetchRate(code: string) {
+  if (!code || code === "KRW") return;
+  fetchRateToKRW(code).catch(() => {});
 }
 
 // "1달러당 1,339.1원" / 엔·동처럼 단위가 작은 통화는 "100엔당 950원"

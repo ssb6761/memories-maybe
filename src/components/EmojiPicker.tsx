@@ -13,6 +13,18 @@ const GROUPS: { title: string; list: string[] }[] = [
   { title: "기분", list: ["❤️", "💕", "🥰", "😎", "🥳", "✨", "🎉", "👨‍👩‍👧", "👫", "💑", "🐶", "🎂"] },
 ];
 
+// 이모티콘만으로 이루어졌는지 (글자·숫자·기호가 섞이면 안 됨).
+// 피부색·성별 조합(👨‍👩‍👧), 국기(🇯🇵), 변형 기호(️) 같은 이모티콘 구성 요소는 허용한다.
+const EMOJI_ONLY =
+  /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|[\u200D\uFE0F\u20E3]|[\u{1F3FB}-\u{1F3FF}]|[\u{E0020}-\u{E007F}])+$/u;
+const HAS_EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+export function isEmojiOnly(text: string) {
+  const t = text.replace(/\s/g, "");
+  // ©·® 같은 일반 글자 영역의 기호는 이모티콘으로 치지 않는다
+  const plainSymbol = Array.from(t).some((c) => (c.codePointAt(0) ?? 0) < 0x2000);
+  return !!t && !plainSymbol && EMOJI_ONLY.test(t) && HAS_EMOJI.test(t);
+}
+
 // 여행 아이콘(이모지) 고르기. "기본"을 고르면 여행지 국기로 돌아간다.
 export default function EmojiPicker({
   open,
@@ -29,6 +41,7 @@ export default function EmojiPicker({
 }) {
   useBackToClose(open, onClose);
   const [custom, setCustom] = useState("");
+  const [customError, setCustomError] = useState(false);
   if (!open) return null;
 
   function choose(e: string | "") {
@@ -85,19 +98,32 @@ export default function EmojiPicker({
         <div className="flex gap-2">
           <ClearableInput
             value={custom}
-            onChange={(e) => setCustom(e.target.value)}
+            onChange={(e) => {
+              setCustom(e.target.value);
+              setCustomError(false);
+            }}
             placeholder="예: 🐋"
-            className="flex-1 h-[44px] rounded-xl border border-ink-300 px-3 text-base outline-none focus:border-brand-500"
+            className={`flex-1 h-[44px] rounded-xl border px-3 text-base outline-none ${
+              customError ? "border-red-500" : "border-ink-300 focus:border-brand-500"
+            }`}
           />
           <button
             type="button"
             disabled={!custom.trim()}
-            onClick={() => choose(Array.from(custom.trim()).slice(0, 8).join(""))}
+            onClick={() => {
+              const t = custom.replace(/\s/g, "");
+              if (!isEmojiOnly(t)) {
+                setCustomError(true);
+                return;
+              }
+              choose(Array.from(t).slice(0, 8).join(""));
+            }}
             className="shrink-0 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             적용
           </button>
         </div>
+        {customError && <p className="mt-1.5 text-xs font-medium text-red-500">이모티콘을 선택해주세요.</p>}
       </div>
     </div>
   );

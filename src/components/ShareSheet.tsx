@@ -28,6 +28,14 @@ export default function ShareSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [files, setFiles] = useState<File[] | null>(null);
+  // 사진 미리보기 주소 (공유 전에 어떻게 나오는지 보여준다)
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = files && kind === "image" ? files.map((f) => URL.createObjectURL(f)) : [];
+    setPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files, kind]);
 
   useEffect(() => {
     if (open) {
@@ -75,7 +83,7 @@ export default function ShareSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] shadow-pop animate-fade-in md:rounded-2xl md:pb-5"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] shadow-pop animate-fade-in md:rounded-2xl md:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -106,7 +114,7 @@ export default function ShareSheet({
             <p className="mb-2 text-xs font-semibold text-ink-500">사진 만들기</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { key: "all" as const, label: "전체 일정", sub: "한 장으로 (길면 나눠서)" },
+                { key: "all" as const, label: "전체 일정", sub: "한 장으로" },
                 { key: "byDay" as const, label: "날짜별", sub: "DAY마다 한 장씩" },
               ].map((o) => (
                 <button
@@ -129,7 +137,7 @@ export default function ShareSheet({
         )}
         {kind === "excel" && (
           <p className="mt-4 text-xs leading-relaxed text-ink-500">
-            날짜 · 시간 · 장소 · 카테고리 · 메모 · 항공편 · 좌표 · 구글 지도 링크를 표로 정리해요.
+            날짜 · 시간 · 장소 · 카테고리 · 메모 · 항공편 · 구글 지도 링크를 표로 정리해요.
           </p>
         )}
 
@@ -146,6 +154,27 @@ export default function ShareSheet({
           </button>
         ) : (
           <div className="mt-5">
+            {previews.length > 0 ? (
+              // 공유하기 전에 만들어진 사진을 미리 본다 (여러 장이면 옆으로 넘겨서)
+              <div className="no-scrollbar -mx-1 mb-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1">
+                {previews.map((u, i) => (
+                  <div
+                    key={u}
+                    className={`relative shrink-0 snap-center overflow-y-auto rounded-xl border border-ink-100 bg-white ${
+                      previews.length > 1 ? "w-[78%]" : "w-full"
+                    } max-h-[45vh]`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u} alt={files[i]?.name} className="no-callout block w-full" draggable={false} />
+                    {previews.length > 1 && (
+                      <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
+                        DAY {i + 1}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <p className="mb-2 text-center text-xs text-ink-500">
               준비됐어요 · {files.length === 1 ? files[0].name : `${files.length}개 파일`}
             </p>

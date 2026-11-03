@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { Expense } from "@/lib/types";
 import { formatAmount, formatKRWApprox } from "@/lib/currency";
 import Emoji from "./Emoji";
@@ -28,6 +29,7 @@ interface Props {
   dragHandleProps?: Record<string, any>; // ≡ 손잡이 (없으면 순서 바꾸기 불가)
   dragging?: boolean;
   rowRef?: (el: HTMLDivElement | null) => void;
+  rowStyle?: CSSProperties;
 }
 
 // 가계부 목록 한 줄. 평소엔 줄 전체를 누르면 상세(수정) 화면이 열리고, 편집 모드에선
@@ -41,6 +43,7 @@ export default function ExpenseRow({
   dragHandleProps,
   dragging = false,
   rowRef,
+  rowStyle,
 }: Props) {
   const icon = CATEGORY_ICON[expense.category] ?? "💳";
   const showKRW = expense.currency !== "KRW";
@@ -48,6 +51,7 @@ export default function ExpenseRow({
   return (
     <div
       ref={rowRef}
+      style={rowStyle}
       role="button"
       tabIndex={0}
       onClick={editMode ? onToggleSelect : onClick}
@@ -55,7 +59,7 @@ export default function ExpenseRow({
         if (e.key === "Enter" || e.key === " ") (editMode ? onToggleSelect : onClick)?.();
       }}
       className={`relative flex cursor-pointer items-center gap-3 border-b border-ink-100 py-3.5 last:border-b-0 active:bg-ink-50 ${
-        dragging ? "z-10 -mx-2 rounded-md bg-white px-2 shadow-pop" : ""
+        dragging ? "-mx-2 rounded-md bg-white px-2" : "bg-white"
       }`}
     >
       {editMode ? (
@@ -83,8 +87,8 @@ export default function ExpenseRow({
         </p>
         {!editMode && (expense.memo || (expense.photos?.length ?? 0) > 0) && (
           <p className="mt-0.5 truncate text-xs text-ink-400">
-            {(expense.photos?.length ?? 0) > 0 ? `📷 ${expense.photos!.length} ` : ""}
             {expense.memo ?? ""}
+            {(expense.photos?.length ?? 0) > 0 ? `${expense.memo ? " " : ""}📷 ${expense.photos!.length}` : ""}
           </p>
         )}
       </div>

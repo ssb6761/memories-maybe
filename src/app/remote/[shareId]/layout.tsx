@@ -10,7 +10,8 @@ import { TravelerStack } from "@/components/TravelerBadge";
 import InviteSheet from "@/components/InviteSheet";
 import Emoji from "@/components/Emoji";
 import { formatNights } from "@/components/DateRangePicker";
-import { findDestination } from "@/lib/destinations";
+import { findDestination, findDestinations } from "@/lib/destinations";
+import { currencyForCountry, prefetchRate } from "@/lib/exchangeRates";
 
 function formatRange(start: string, end: string) {
   const s = new Date(start);
@@ -40,6 +41,14 @@ function TripLayoutInner({ children, params }: { children: ReactNode; params: { 
   const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+
+  // 여행지 나라 통화의 환율을 미리 받아 둔다(가계부에서 비용 추가를 누르면 바로 보이게)
+  useEffect(() => {
+    findDestinations(trip?.destination).forEach((d) => {
+      const code = currencyForCountry(d.country);
+      if (code) prefetchRate(code);
+    });
+  }, [trip?.destination]);
 
   // 멤버가 아니면 초대 화면으로 (거기서 "참여하기"를 누르면 멤버가 된다)
   useEffect(() => {

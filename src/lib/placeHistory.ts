@@ -41,7 +41,8 @@ export function getRecentSearches(): string[] {
 export function addRecentSearch(query: string) {
   const q = query.trim();
   if (!q) return;
-  const list = getRecentSearches().filter((item) => item !== q);
+  // 글자를 치는 동안 저장된 앞부분("하", "하와")은 완성된 검색어("하와이")로 합친다.
+  const list = getRecentSearches().filter((item) => item !== q && !q.startsWith(item));
   list.unshift(q);
   writeList(RECENT_SEARCHES_KEY, list.slice(0, MAX_ITEMS));
 }

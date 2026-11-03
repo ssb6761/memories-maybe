@@ -5,6 +5,7 @@ import { Expense, ScheduleItem, Traveler } from "@/lib/types";
 import { findDestinations } from "@/lib/destinations";
 import {
   CURRENCY_OPTIONS,
+  cachedRateToKRW,
   currencyForCountry,
   currencyName,
   describeRate,
@@ -183,7 +184,15 @@ export default function ExpenseModal({
       return;
     }
     let cancelled = false;
-    setRateStatus("loading");
+    // 기기에 저장해 둔 환율이 있으면 먼저 바로 보여주고, 최신 값은 뒤에서 받아 바꾼다.
+    const quick = cachedRateToKRW(currency, expenseDate);
+    if (quick) {
+      setRate(quick.rate);
+      setRateDate(quick.date);
+      setRateStatus("idle");
+    } else {
+      setRateStatus("loading");
+    }
     fetchRateToKRW(currency, expenseDate)
       .then((r) => {
         if (cancelled) return;
@@ -192,7 +201,7 @@ export default function ExpenseModal({
         setRateStatus("idle");
       })
       .catch(() => {
-        if (!cancelled) setRateStatus("error");
+        if (!cancelled && !quick) setRateStatus("error");
       });
     return () => {
       cancelled = true;

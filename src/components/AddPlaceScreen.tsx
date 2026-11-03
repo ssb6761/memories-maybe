@@ -153,6 +153,8 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       return;
     }
     addRecentSearch(effectiveQuery);
+    // 검색어를 지우면(✕) 바로 최근 검색어 목록에 보이도록 화면 목록도 같이 갱신한다.
+    setRecentSearches(getRecentSearches());
     // 스크립트가 아직 로딩 중("checking")이어도 구글 검색으로 보낸다 — search()가 로딩
     // 완료를 기다린다. 예전엔 이때 발리 샘플 목록에서 검색해버려서 결과가 이상하게 나왔다.
     if (useGoogle) {
@@ -565,7 +567,16 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
               <div className="space-y-5 py-2">
                 {recentSearches.length > 0 && (
                   <div>
-                    <p className="mb-2 text-xs font-semibold text-ink-500">최근 검색어</p>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold text-ink-500">최근 검색어</p>
+                      <button
+                        type="button"
+                        onClick={handleClearRecentSearches}
+                        className="text-[11px] text-ink-400 underline"
+                      >
+                        전체 삭제
+                      </button>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {recentSearches.map((text) => (
                         <button
@@ -584,13 +595,6 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
                           </span>
                         </button>
                       ))}
-                      <button
-                        type="button"
-                        onClick={handleClearRecentSearches}
-                        className="px-2 text-xs text-ink-400 underline"
-                      >
-                        전체 삭제
-                      </button>
                     </div>
                   </div>
                 )}

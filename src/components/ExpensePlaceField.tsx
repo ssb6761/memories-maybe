@@ -108,21 +108,9 @@ export default function ExpensePlaceField({
                 }}
                 className="block w-full bg-ink-50 px-3 py-2.5 text-left text-sm font-semibold text-brand-600 active:bg-ink-100"
               >
-                + 원하는 장소가 없어요 · 직접 추가
+                + 직접 추가
               </button>
             </div>
-          )}
-          {!query.trim() && (
-            <button
-              type="button"
-              onClick={() => {
-                setCustomName("");
-                setCustomOpen(true);
-              }}
-              className="mt-1.5 text-xs font-semibold text-ink-400 underline"
-            >
-              직접 추가
-            </button>
           )}
         </>
       )}

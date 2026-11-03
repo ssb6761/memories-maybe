@@ -71,3 +71,11 @@ img {
   background-size: 2px 100%;
   background-position: center;
 }
+
+/* 사진을 꾹 눌러도 아이폰의 "공유/저장/복사" 메뉴가 뜨거나 끌려 다니지 않게 */
+.no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}

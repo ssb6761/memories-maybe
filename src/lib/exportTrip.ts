@@ -211,14 +211,21 @@ function paginate(header: Block, body: Block[], maxH: number, trip: Trip): Block
   return pages;
 }
 
+// 아이폰 사파리는 캔버스 한 장이 약 1,670만 픽셀을 넘으면 그림이 안 나온다.
+// 일정이 길어도 "한 장"으로 만들 수 있게, 넘칠 땐 전체를 비율 그대로 조금 줄여서 그린다.
+const MAX_PIXELS = 16_000_000;
+
 function drawPage(blocks: Block[], fixedH?: number): HTMLCanvasElement {
   const contentH = blocks.reduce((s, b) => s + b.h, 0) + PAD;
+  const logicalH = Math.max(fixedH ?? 0, contentH);
+  const scale = Math.min(1, Math.sqrt(MAX_PIXELS / (W * logicalH)));
   const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = Math.max(fixedH ?? 0, contentH);
+  canvas.width = Math.round(W * scale);
+  canvas.height = Math.round(logicalH * scale);
   const c = canvas.getContext("2d")!;
+  c.scale(scale, scale);
   c.fillStyle = "#ffffff";
-  c.fillRect(0, 0, canvas.width, canvas.height);
+  c.fillRect(0, 0, W, logicalH);
   c.textBaseline = "alphabetic";
   let y = 0;
   for (const b of blocks) {
@@ -229,7 +236,7 @@ function drawPage(blocks: Block[], fixedH?: number): HTMLCanvasElement {
   setFont(c, 20, 500);
   c.fillStyle = "#c4c9d0";
   c.textAlign = "right";
-  c.fillText("추억일지도", W - PAD, canvas.height - 24);
+  c.fillText("추억일지도", W - PAD, logicalH - 24);
   c.textAlign = "left";
   return canvas;
 }
@@ -249,8 +256,6 @@ function safeName(s: string) {
   return s.replace(/[\\/:*?"<>|]/g, "").trim() || "여행";
 }
 
-// 아이폰은 캔버스 한 장 크기 제한이 있어서(약 1,600만 픽셀) 길면 여러 장으로 나눈다.
-const MAX_IMAGE_H = 9000;
 
 export async function exportImages(trip: Trip, schedule: ScheduleItem[], mode: "all" | "byDay"): Promise<File[]> {
   const total = totalDaysOf(trip.startDate, trip.endDate);
@@ -259,14 +264,11 @@ export async function exportImages(trip: Trip, schedule: ScheduleItem[], mode: "
   const files: File[] = [];
   const groups = mode === "all" ? [allDays] : allDays.map((d) => [d]);
   for (const days of groups) {
+    // 나누지 않고 항상 한 장으로 만든다(길면 drawPage가 알아서 크기를 줄인다).
     const { header, body } = buildBlocks(ctx, trip, schedule, days);
-    const pages = paginate(header, body, MAX_IMAGE_H, trip);
-    for (let i = 0; i < pages.length; i++) {
-      const blob = await blobFrom(drawPage(pages[i]), "image/png");
-      const base = mode === "all" ? safeName(trip.name) : `${safeName(trip.name)}_DAY${days[0]}`;
-      const name = pages.length > 1 ? `${base}_${i + 1}.png` : `${base}.png`;
-      files.push(new File([blob], name, { type: "image/png" }));
-    }
+    const blob = await blobFrom(drawPage([header, ...body]), "image/png");
+    const base = mode === "all" ? safeName(trip.name) : `${safeName(trip.name)}_DAY${days[0]}`;
+    files.push(new File([blob], `${base}.png`, { type: "image/png" }));
   }
   return files;
 }
@@ -348,7 +350,7 @@ function buildPdf(images: { bytes: Uint8Array; w: number; h: number }[]): Blob {
 
 export function exportXlsx(trip: Trip, schedule: ScheduleItem[]): File {
   const total = totalDaysOf(trip.startDate, trip.endDate);
-  const header = ["DAY", "날짜", "순서", "시간", "구분", "이름", "카테고리", "메모", "항공편", "위도", "경도", "구글 지도"];
+  const header = ["DAY", "날짜", "순서", "시간", "구분", "이름", "카테고리", "메모", "항공편", "구글 지도"];
   const rows: (string | number)[][] = [header];
   for (let day = 1; day <= total; day++) {
     const items = sortedDayItems(schedule, day);
@@ -369,15 +371,13 @@ export function exportXlsx(trip: Trip, schedule: ScheduleItem[]): File {
         f
           ? `${f.airline ?? ""} ${f.depAirport ?? ""} ${f.depTime ?? ""} → ${f.arrAirport ?? ""} ${f.arrTime ?? ""}${f.arrNextDay ? " (+1)" : ""}`.trim()
           : "",
-        typeof it.lat === "number" ? it.lat : "",
-        typeof it.lng === "number" ? it.lng : "",
         typeof it.lat === "number" && typeof it.lng === "number"
           ? `https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lng}`
           : "",
       ]);
     });
   }
-  const widths = [6, 16, 6, 8, 8, 30, 10, 40, 34, 12, 12, 50];
+  const widths = [6, 16, 6, 8, 8, 30, 10, 40, 34, 50];
   return new File([buildXlsx(rows, "일정", widths)], `${safeName(trip.name)}.xlsx`, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });

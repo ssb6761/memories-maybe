@@ -83,7 +83,7 @@ export default function ScheduleItemCard({
           if (!reorderMode && (e.key === "Enter" || e.key === " ")) onClick();
         }}
         className={`min-w-0 flex-1 rounded-md border bg-white px-3.5 py-3 text-left shadow-card transition
-                    cursor-pointer active:scale-[0.99] ${dragging ? "scale-[1.02] shadow-pop" : ""}
+                    cursor-pointer ${dragging ? "" : "active:scale-[0.99]"}
                     ${
                       checked
                         ? "border-red-400 ring-2 ring-red-100"
@@ -125,14 +125,14 @@ export default function ScheduleItemCard({
                   </p>
                 )}
                 {!reorderMode && item.memo && (
-                  <p className="mt-1 text-xs text-ink-400 line-clamp-2">{item.memo}</p>
+                  <p className="mt-1 text-xs text-ink-600 line-clamp-2">{item.memo}</p>
                 )}
               </>
             ) : isMemo ? (
               <>
                 {item.memo && (
                   <p
-                    className={`break-words text-sm text-ink-700 ${
+                    className={`break-words text-sm text-ink-800 ${
                       reorderMode ? "truncate" : "whitespace-pre-wrap"
                     }`}
                   >
@@ -156,7 +156,7 @@ export default function ScheduleItemCard({
                 </div>
                 <p className="mt-0.5 truncate text-xs text-ink-500">{item.category}</p>
                 {!reorderMode && item.memo && (
-                  <p className="mt-1 whitespace-pre-wrap break-words text-xs text-ink-400 line-clamp-2">{item.memo}</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-[13px] text-ink-600 line-clamp-2">{item.memo}</p>
                 )}
               </>
             )}

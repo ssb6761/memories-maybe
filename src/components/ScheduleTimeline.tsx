@@ -13,6 +13,7 @@ import FlightModal from "./FlightModal";
 import ExpenseModal from "./ExpenseModal";
 import Emoji from "./Emoji";
 import { useDragReorder } from "@/lib/useDragReorder";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface Props {
   day: number;
@@ -161,6 +162,18 @@ export default function ScheduleTimeline({
     }
   }
 
+  // 거리순 정렬: 확인 창 → 정렬한 순서를 편집 화면에 보여주고, "완료"를 눌러야 저장된다.
+  const [distanceConfirm, setDistanceConfirm] = useState(false);
+  function applyDistanceSort() {
+    setDistanceConfirm(false);
+    const next = sortByDistance(displayItems);
+    if (next.every((id, i) => displayItems[i]?.id === id)) {
+      alert("이미 가까운 순서로 되어 있어요.\n(위치가 있는 장소가 3곳 이상일 때 바뀌어요)");
+      return;
+    }
+    setDraftOrder(next);
+  }
+
   function startReorder() {
     setChecked(new Set());
     setDraftOrder(items.map((i) => i.id));
@@ -229,14 +242,7 @@ export default function ScheduleTimeline({
           </button>
           <button
             type="button"
-            onClick={() => {
-              const next = sortByDistance(displayItems);
-              if (next.every((id, i) => displayItems[i]?.id === id)) {
-                alert("이미 가장 가까운 순서예요. (좌표가 있는 장소가 3곳 이상일 때 바뀌어요)");
-                return;
-              }
-              setDraftOrder(next);
-            }}
+            onClick={() => setDistanceConfirm(true)}
             className="flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-600 active:scale-95"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -246,11 +252,7 @@ export default function ScheduleTimeline({
           </button>
         </div>
       )}
-      {reorderMode && (
-        <p className="-mt-1 mb-3 px-1 text-[11px] leading-relaxed text-ink-400">
-          ≡ 를 끌어서 순서를 바꾸거나, 거리순 정렬로 첫 장소에서 가까운 순서대로 정리할 수 있어요. 완료를 눌러야 저장돼요.
-        </p>
-      )}
+
 
       <div className="relative">
         {displayItems.map((item, idx) => {
@@ -259,7 +261,7 @@ export default function ScheduleTimeline({
           const leg = reorderMode ? undefined : legs[idx];
           const isLast = idx === displayItems.length - 1;
           return (
-            <div key={item.id} ref={drag.itemRef(item.id)}>
+            <div key={item.id} ref={drag.itemRef(item.id)} style={drag.itemStyle(item.id)}>
               <ScheduleItemCard
                 item={item}
                 index={numbers.get(item.id) ?? 0}
@@ -354,6 +356,13 @@ export default function ScheduleTimeline({
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={distanceConfirm}
+        message={"첫 번째 장소를 기준으로\n가까운 장소 순서로 재정렬합니다.\n일정을 거리순으로 정렬하시겠습니까?"}
+        onCancel={() => setDistanceConfirm(false)}
+        onConfirm={applyDistanceSort}
+      />
 
       <ScheduleItemModal
         open={modalOpen}

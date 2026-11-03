@@ -131,13 +131,11 @@ export default function ExpensesView({
   const drag = useDragReorder(
     visible.map((e) => e.id),
     (nextVisible) => {
-      const dayOf = new Map(ordered.map((e) => [e.id, e.day ?? 0]));
-      const days = nextVisible.map((id) => dayOf.get(id) ?? 0);
-      if (days.some((d, i) => i > 0 && d < days[i - 1])) return; // 다른 날짜로 넘어가려 하면 무시
       const visSet = new Set(nextVisible);
       let k = 0;
       setDraftOrder(ordered.map((e) => (visSet.has(e.id) ? nextVisible[k++] : e.id)));
-    }
+    },
+    (id) => ordered.find((e) => e.id === id)?.day ?? 0
   );
 
   function toggleSelect(id: string) {
@@ -338,6 +336,7 @@ export default function ExpensesView({
                   <ExpenseRow
                     key={e.id}
                     rowRef={drag.itemRef(e.id)}
+                    rowStyle={drag.itemStyle(e.id)}
                     expense={e}
                     onClick={() => {
                       setEditing(e);
