@@ -17,8 +17,13 @@ const LIST_PEEK = 72; // 지도를 크게 해도 일정 목록 윗부분은 이�
 function bottomHeightFor(el: HTMLElement | null) {
   if (typeof window === "undefined" || !el) return 420;
   const top = el.getBoundingClientRect().top + window.scrollY;
-  const nav = document.querySelector("nav");
-  const navH = nav && getComputedStyle(nav).position === "fixed" ? nav.getBoundingClientRect().height : 0;
+  // 아래 탭 바(일정/가계부/여행관리) 높이. 화면에는 PC용 탭 바(숨겨져 있음)도 같이 있어서,
+  // 첫 번째 <nav>만 보면 높이가 0으로 잡혀 손잡이가 탭 바 뒤로 숨었다 → 실제로 보이는 것만 잰다.
+  const navH = Array.from(document.querySelectorAll("nav")).reduce((max, n) => {
+    if (getComputedStyle(n).position !== "fixed") return max;
+    const r = n.getBoundingClientRect();
+    return r.height > 0 && r.bottom >= window.innerHeight - 2 ? Math.max(max, r.height) : max;
+  }, 0);
   const room = window.innerHeight - top - navH - HANDLE_H - LIST_PEEK;
   return Math.max(MID_H + 60, Math.round(room));
 }
