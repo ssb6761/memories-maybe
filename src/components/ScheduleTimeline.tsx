@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Category, Expense, ScheduleItem, Traveler } from "@/lib/types";
-import { buildLegs, sortByDistance, sortedDayItems } from "@/lib/scheduleUtils";
+import { sortByDistance, sortedDayItems } from "@/lib/scheduleUtils";
+import { haversineKm } from "@/lib/distance";
 import { formatDistance } from "@/lib/distance";
 import { isPlaceItem, placeNumbers } from "@/lib/mapHelpers";
 import ScheduleItemCard from "./ScheduleItemCard";
@@ -35,6 +36,9 @@ interface Props {
   onSaveExpense: (
     data: Partial<Expense> & { title: string; amount: number; currency: string }
   ) => void | Promise<void>;
+  // 편집(순서 바꾸기·거리순 정렬) 중인 순서를 지도에 미리 보여주기 위해 알린다.
+  // null = 편집 중이 아님(저장된 순서대로).
+  onPreviewOrder?: (ids: string[] | null) => void;
 }
 
 export default function ScheduleTimeline({
@@ -52,9 +56,9 @@ export default function ScheduleTimeline({
   onReorder,
   onDeleteMany,
   onSaveExpense,
+  onPreviewOrder,
 }: Props) {
   const items = useMemo(() => sortedDayItems(schedule, day), [schedule, day]);
-  const legs = useMemo(() => buildLegs(items), [items]);
 
   // 순서 편집 모드: "편집"을 누르면 카드마다 ▲▼ 버튼이 생기고, 바꾼 순서는 화면에서 바로
   // 번호까지 바뀌어 보인다. "완료"를 누를 때 한 번에 저장한다(누를 때마다 서버에 보내면
@@ -82,6 +86,28 @@ export default function ScheduleTimeline({
   }, [reorderMode, items, draftOrder]);
 
   const numbers = useMemo(() => placeNumbers(displayItems), [displayItems]);
+
+  // 편집 중 순서를 지도에도 바로 보여준다 ("완료"를 누르면 저장, "취소"를 누르면 원래대로)
+  const previewRef = useRef(onPreviewOrder);
+  previewRef.current = onPreviewOrder;
+  const previewKey = reorderMode ? displayItems.map((i) => i.id).join(",") : "";
+  useEffect(() => {
+    previewRef.current?.(previewKey ? previewKey.split(",") : null);
+  }, [previewKey]);
+  useEffect(() => () => previewRef.current?.(null), []);
+
+  // 각 장소 위에 표시할 "앞 장소에서 온 거리". 사이에 메모·시간 같은 위치 없는 항목이
+  // 끼어 있어도 바로 앞의 '위치 있는 장소'부터 잰다.
+  const kmBefore = useMemo(() => {
+    const map = new Map<string, number>();
+    let prev: ScheduleItem | null = null;
+    for (const it of displayItems) {
+      if (typeof it.lat !== "number" || typeof it.lng !== "number") continue;
+      if (prev) map.set(it.id, haversineKm({ lat: prev.lat!, lng: prev.lng! }, { lat: it.lat, lng: it.lng }));
+      prev = it;
+    }
+    return map;
+  }, [displayItems]);
 
   // 장소 추가 화면 지도에 미리 보여줄, 지금 DAY에 넣은 장소들(일정과 같은 번호)
   const savedPlaces: SavedPlacePin[] = useMemo(
@@ -257,9 +283,9 @@ export default function ScheduleTimeline({
       <div className="relative">
         {displayItems.map((item, idx) => {
           const linkedExpenses = expenses.filter((e) => e.scheduleItemId === item.id);
-          // 순서를 바꾸는 중엔 이동 거리가 맞지 않으니 숨긴다.
-          const leg = reorderMode ? undefined : legs[idx];
           const isLast = idx === displayItems.length - 1;
+          // 다음 항목이 장소면 그 위(이 사이 칸)에 앞 장소부터의 거리를 표시한다. 순서를 바꾸는 중엔 숨긴다.
+          const nextKm = !reorderMode && !isLast ? kmBefore.get(displayItems[idx + 1].id) : undefined;
           return (
             <div key={item.id} ref={drag.itemRef(item.id)} style={drag.itemStyle(item.id)}>
               <ScheduleItemCard
@@ -277,27 +303,18 @@ export default function ScheduleTimeline({
                 lineTop={idx > 0}
                 lineBottom={!isLast}
               />
-              {/* 다음 장소까지의 거리만, 번호 원들 사이 세로줄 위에 작게 표시한다. */}
-              {leg && (
-                <div className="flex pl-1">
-                  <div className="flex w-8 shrink-0 flex-col items-center">
-                    <div className="h-1.5 w-[2px] bg-[#bcc2ca]" />
-                    {leg.km !== null && (
-                      <span className="whitespace-nowrap text-[10px] font-medium leading-tight text-ink-400">
-                        {formatDistance(leg.km)}
-                      </span>
-                    )}
-                    <div className="h-1.5 w-[2px] bg-[#bcc2ca]" />
-                  </div>
+              {/* 항목 사이 칸: 거리가 있든 없든 높이를 똑같이 두어 간격이 일정하게 보이게 하고,
+                  거리는 세로줄 위에 겹쳐서 작게 표시한다. */}
+              <div className="relative flex h-3 pl-1">
+                <div className="relative flex w-8 shrink-0 justify-center">
+                  {!isLast && <div className="h-full w-[2px] bg-[#bcc2ca]" />}
+                  {nextKm !== undefined && (
+                    <span className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-[#f7f8fa] px-0.5 text-[10px] font-medium leading-tight text-ink-400">
+                      {formatDistance(nextKm)}
+                    </span>
+                  )}
                 </div>
-              )}
-              {(reorderMode || !leg) && (
-                <div className="flex h-2 pl-1">
-                  <div className="flex w-8 shrink-0 justify-center">
-                    {!isLast && <div className="h-full w-[2px] bg-[#bcc2ca]" />}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           );
         })}
@@ -334,16 +351,16 @@ export default function ScheduleTimeline({
       ) : (
         <div className="mt-3 flex gap-2">
           <button
+            onClick={() => setAddChoiceOpen(true)}
+            className="flex min-w-0 flex-[1.15] items-center justify-center gap-1 rounded-2xl border border-dashed border-ink-300 bg-ink-100/60 px-2 py-3 text-center text-[13px] font-semibold leading-tight text-ink-600 active:scale-[0.99]"
+          >
+            항공 및 시간/메모 추가
+          </button>
+          <button
             onClick={() => setAddPlaceOpen(true)}
             className="flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-dashed border-brand-300 bg-brand-50 px-2 py-3 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
           >
             <Emoji e="📍" size={16} /> 장소 추가
-          </button>
-          <button
-            onClick={() => setAddChoiceOpen(true)}
-            className="flex min-w-0 flex-[1.4] items-center justify-center gap-1 rounded-2xl border border-dashed border-ink-300 bg-ink-100/60 px-2 py-3 text-center text-[13px] font-semibold leading-tight text-ink-600 active:scale-[0.99]"
-          >
-            항공 및 시간/메모 추가
           </button>
           {items.length > 0 && (
             <button

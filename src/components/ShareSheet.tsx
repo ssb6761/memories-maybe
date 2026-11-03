@@ -5,6 +5,7 @@ import type { ScheduleItem, Trip } from "@/lib/types";
 import { canShareFiles, downloadFiles, exportImages, exportPdf, exportXlsx, shareFiles } from "@/lib/exportTrip";
 import { useBackToClose } from "@/lib/useBackToClose";
 import Emoji from "./Emoji";
+import CloseIcon from "./CloseIcon";
 
 type Kind = "image" | "pdf" | "excel";
 
@@ -30,10 +31,13 @@ export default function ShareSheet({
   const [files, setFiles] = useState<File[] | null>(null);
   // 사진 미리보기 주소 (공유 전에 어떻게 나오는지 보여준다)
   const [previews, setPreviews] = useState<string[]>([]);
+  // 날짜별 사진: 공유할 장을 고른다 (처음엔 전부 선택)
+  const [picked, setPicked] = useState<boolean[]>([]);
 
   useEffect(() => {
     const urls = files && kind === "image" ? files.map((f) => URL.createObjectURL(f)) : [];
     setPreviews(urls);
+    setPicked(files ? files.map(() => true) : []);
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [files, kind]);
 
@@ -72,7 +76,19 @@ export default function ShareSheet({
     }
   }
 
-  const shareable = !!files && canShareFiles(files);
+  const selectedFiles = files ? files.filter((_, i) => picked[i] !== false) : [];
+  const multi = previews.length > 1;
+
+  // 휴대폰은 공유 창(카카오톡·메시지 등)을 열고, 공유 기능이 없는 브라우저(PC 등)는 파일로 내려받는다.
+  // 아이폰은 누른 순간에 바로 공유 창을 열어야 해서, 미리 만들어 둔 파일을 넘긴다.
+  function share() {
+    if (!selectedFiles.length) return;
+    if (canShareFiles(selectedFiles)) {
+      shareFiles(selectedFiles, trip.name).catch((err) => setError(err?.message ?? "공유하지 못했어요."));
+    } else {
+      downloadFiles(selectedFiles);
+    }
+  }
 
   const kinds: { key: Kind; icon: string; label: string }[] = [
     { key: "image", icon: "🖼️", label: "사진" },
@@ -88,8 +104,8 @@ export default function ShareSheet({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">일정 공유</h2>
-          <button type="button" onClick={onClose} className="p-1 text-ink-400" aria-label="닫기">
-            ✕
+          <button type="button" onClick={onClose} className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="닫기">
+            <CloseIcon />
           </button>
         </div>
 
@@ -157,52 +173,63 @@ export default function ShareSheet({
             {previews.length > 0 ? (
               // 공유하기 전에 만들어진 사진을 미리 본다 (여러 장이면 옆으로 넘겨서)
               <div className="no-scrollbar -mx-1 mb-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1">
-                {previews.map((u, i) => (
-                  <div
-                    key={u}
-                    className={`relative shrink-0 snap-center overflow-y-auto rounded-xl border border-ink-100 bg-white ${
-                      previews.length > 1 ? "w-[78%]" : "w-full"
-                    } max-h-[45vh]`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={u} alt={files[i]?.name} className="no-callout block w-full" draggable={false} />
-                    {previews.length > 1 && (
-                      <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
-                        DAY {i + 1}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                {previews.map((u, i) => {
+                  const on = picked[i] !== false;
+                  return (
+                    <div key={u} className={`relative shrink-0 snap-center ${multi ? "w-[78%]" : "w-full"}`}>
+                      <div
+                        className={`max-h-[45vh] overflow-y-auto rounded-xl border bg-white ${
+                          multi && on ? "border-brand-500" : "border-ink-100"
+                        } ${multi && !on ? "opacity-50" : ""}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={u} alt={files[i]?.name} className="no-callout block w-full" draggable={false} />
+                      </div>
+                      {multi && (
+                        <>
+                          <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
+                            DAY {i + 1}
+                          </span>
+                          {/* 오른쪽 위 선택 단추: 고른 날짜만 공유한다 */}
+                          <button
+                            type="button"
+                            onClick={() => setPicked((p) => p.map((v, k) => (k === i ? !(v !== false) : v !== false)))}
+                            className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center"
+                            aria-label={on ? `DAY ${i + 1} 선택 해제` : `DAY ${i + 1} 선택`}
+                            aria-pressed={on}
+                          >
+                            <span
+                              className={`flex h-6 w-6 items-center justify-center rounded-full border-2 shadow ${
+                                on ? "border-brand-600 bg-brand-600 text-white" : "border-white bg-black/30 text-transparent"
+                              }`}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
             <p className="mb-2 text-center text-xs text-ink-500">
-              준비됐어요 · {files.length === 1 ? files[0].name : `${files.length}개 파일`}
+              {multi
+                ? selectedFiles.length
+                  ? `${files.length}장 중 ${selectedFiles.length}장 선택됨`
+                  : "공유할 날짜를 선택해주세요"
+                : `준비됐어요 · ${files[0]?.name ?? ""}`}
             </p>
-            <div className="flex gap-2">
-              {shareable && (
-                <button
-                  type="button"
-                  // 아이폰은 누른 순간에 바로 공유 창을 열어야 해서, 미리 만들어 둔 파일을 넘긴다
-                  onClick={() =>
-                    shareFiles(files, trip.name).catch((err) =>
-                      setError(err?.message ?? "공유하지 못했어요. 저장하기를 이용해주세요.")
-                    )
-                  }
-                  className="flex-1 rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white active:scale-[0.99]"
-                >
-                  공유하기
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => downloadFiles(files)}
-                className={`flex-1 rounded-xl py-3.5 text-sm font-semibold active:scale-[0.99] ${
-                  shareable ? "border border-ink-200 text-ink-700" : "bg-brand-600 text-white"
-                }`}
-              >
-                저장하기
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={share}
+              disabled={!selectedFiles.length}
+              className="w-full rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-50"
+            >
+              공유하기
+            </button>
           </div>
         )}
       </div>

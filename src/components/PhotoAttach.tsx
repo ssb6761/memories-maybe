@@ -68,7 +68,9 @@ export function usePhotoAttach(photos: string[], onChange: (ids: string[]) => vo
       ref={inputRef}
       type="file"
       accept="image/*"
-      multiple
+      // 남은 자리가 한 장이면 한 장만 고르게 한다. (웹에서는 "최대 몇 장"을 고르기 창에
+      // 직접 걸 수 없어서, 그보다 많이 고르면 안내 후 다시 고르게 한다.)
+      multiple={left > 1}
       className="hidden"
       onChange={(e) => {
         handleFiles(e.target.files);
@@ -135,7 +137,9 @@ export function PhotoThumbs({
   if (photos.length === 0 && uploading === 0 && !extra) return null;
   return (
     <>
-      <div className="no-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain py-1">
+      {/* 위·오른쪽에 여백을 두어 빼기(×) 단추가 잘리지 않게 하고, 세로로는 절대 움직이지 않게
+          (overflow-y-hidden) 해서 손가락으로 만질 때 사진 줄이 위아래로 흔들리지 않는다. */}
+      <div className="no-scrollbar flex gap-2 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1 pr-3.5 pt-2">
         {photos.map((id, i) => (
           <div key={id} className="relative shrink-0" style={{ width: size, height: size }}>
             <button
@@ -216,6 +220,7 @@ function PhotoViewer({
   useBackToClose(true, onClose);
   const [mounted, setMounted] = useState(false);
   const [dx, setDx] = useState(0); // 손가락을 따라 옆으로 끌린 거리
+  const [dy, setDy] = useState(0); // 아래로 끌어내린 거리 (충분히 내리면 닫힌다)
   const [animating, setAnimating] = useState(false);
   const touch = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null);
   const widthRef = useRef(375);
@@ -261,11 +266,18 @@ function PhotoViewer({
 
   const content = (
     <div
-      className="no-callout fixed inset-0 z-[90] flex flex-col bg-black"
+      className="no-callout fixed inset-0 z-[90] flex flex-col"
+      style={{
+        backgroundColor: `rgba(0,0,0,${dy > 0 ? Math.max(0.25, 1 - dy / 500) : 1})`,
+        transition: animating ? "background-color 260ms" : "none",
+      }}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <div className="relative z-10 flex items-center justify-between px-4 pb-2 pt-[max(12px,env(safe-area-inset-top))] text-sm text-white/80">
+      <div
+        className="relative z-10 flex items-center justify-between px-4 pb-2 pt-[max(12px,env(safe-area-inset-top))] text-sm text-white/80"
+        style={{ opacity: dy > 0 ? Math.max(0, 1 - dy / 150) : 1 }}
+      >
         <span>
           {index + 1} / {photos.length}
         </span>
@@ -298,7 +310,11 @@ function PhotoViewer({
           const mx = e.touches[0].clientX - t.x;
           const my = e.touches[0].clientY - t.y;
           if (t.horizontal === null && (Math.abs(mx) > 6 || Math.abs(my) > 6)) t.horizontal = Math.abs(mx) >= Math.abs(my);
-          if (!t.horizontal) return;
+          if (!t.horizontal) {
+            // 아래로 쓸어내리면 사진이 따라 내려가고, 위로는 조금만 움직인다
+            setDy(my > 0 ? my : my * 0.2);
+            return;
+          }
           // 첫 장/마지막 장에서는 덜 끌리게
           const edge = (index === 0 && mx > 0) || (index === photos.length - 1 && mx < 0);
           setDx(edge ? mx * 0.3 : mx);
@@ -306,7 +322,17 @@ function PhotoViewer({
         onTouchEnd={() => {
           const t = touch.current;
           touch.current = null;
-          if (!t || !t.horizontal) return;
+          if (!t) return;
+          if (!t.horizontal) {
+            if (dy > 110) {
+              onClose();
+              return;
+            }
+            setAnimating(true);
+            setDy(0);
+            window.setTimeout(() => setAnimating(false), 260);
+            return;
+          }
           const threshold = widthRef.current * 0.18;
           if (dx < -threshold) go(1);
           else if (dx > threshold) go(-1);
@@ -321,7 +347,7 @@ function PhotoViewer({
           className="flex h-full"
           style={{
             width: `${photos.length * 100}%`,
-            transform: `translateX(calc(${(-index * 100) / photos.length}% + ${dx}px))`,
+            transform: `translate(calc(${(-index * 100) / photos.length}% + ${dx}px), ${dy}px)`,
             transition: animating ? "transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1)" : "none",
           }}
         >

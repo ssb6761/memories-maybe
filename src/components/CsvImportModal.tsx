@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { ImportedExpenseDraft, parseTripleExpensesCsv } from "@/lib/csv";
 import { formatKRW } from "@/lib/currency";
 import { useBackToClose } from "@/lib/useBackToClose";
+import CloseIcon from "./CloseIcon";
 
 interface Props {
   open: boolean;
@@ -141,9 +142,10 @@ export default function CsvImportModal({
               reset();
               onClose();
             }}
-            className="text-ink-400 hover:text-ink-600"
+            className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ink-100"
+            aria-label="닫기"
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
 

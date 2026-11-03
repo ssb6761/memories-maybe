@@ -4,6 +4,7 @@ import { useState } from "react";
 import Emoji from "./Emoji";
 import ClearableInput from "./ClearableInput";
 import { useBackToClose } from "@/lib/useBackToClose";
+import CloseIcon from "./CloseIcon";
 
 const GROUPS: { title: string; list: string[] }[] = [
   { title: "여행", list: ["✈️", "🧳", "🗺️", "🧭", "🏝️", "🏖️", "⛱️", "🌴", "🌺", "🌸", "🗼", "🏯", "⛩️", "🕌", "🏰", "🗽", "🎡", "⛰️", "🏔️", "🌋"] },
@@ -57,8 +58,8 @@ export default function EmojiPicker({
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">여행 아이콘</h2>
-          <button type="button" onClick={onClose} className="p-1 text-ink-400" aria-label="닫기">
-            ✕
+          <button type="button" onClick={onClose} className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="닫기">
+            <CloseIcon />
           </button>
         </div>
 
@@ -73,28 +74,7 @@ export default function EmojiPicker({
           <span className="text-sm font-semibold text-ink-800">기본 (여행지 국기)</span>
         </button>
 
-        {GROUPS.map((g) => (
-          <div key={g.title} className="mb-3">
-            <p className="mb-1.5 text-xs font-semibold text-ink-400">{g.title}</p>
-            <div className="grid grid-cols-7 gap-1 sm:grid-cols-8">
-              {g.list.map((e) => (
-                <button
-                  type="button"
-                  key={e}
-                  onClick={() => choose(e)}
-                  className={`flex aspect-square items-center justify-center rounded-xl ${
-                    current === e ? "bg-brand-100 ring-2 ring-brand-500" : "active:bg-ink-100"
-                  }`}
-                  aria-label={e}
-                >
-                  <Emoji e={e} size={26} />
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <p className="mb-1.5 mt-4 text-xs font-semibold text-ink-400">직접 입력 (키보드의 이모티콘)</p>
+        <p className="mb-1.5 text-xs font-semibold text-ink-400">직접 입력 (키보드의 이모티콘)</p>
         <div className="flex gap-2">
           <ClearableInput
             value={custom}
@@ -124,6 +104,28 @@ export default function EmojiPicker({
           </button>
         </div>
         {customError && <p className="mt-1.5 text-xs font-medium text-red-500">이모티콘을 선택해주세요.</p>}
+        <div className="mb-4" />
+        {GROUPS.map((g) => (
+          <div key={g.title} className="mb-3">
+            <p className="mb-1.5 text-xs font-semibold text-ink-400">{g.title}</p>
+            <div className="grid grid-cols-7 gap-1 sm:grid-cols-8">
+              {g.list.map((e) => (
+                <button
+                  type="button"
+                  key={e}
+                  onClick={() => choose(e)}
+                  className={`flex aspect-square items-center justify-center rounded-xl ${
+                    current === e ? "bg-brand-100 ring-2 ring-brand-500" : "active:bg-ink-100"
+                  }`}
+                  aria-label={e}
+                >
+                  <Emoji e={e} size={26} />
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
       </div>
     </div>
   );

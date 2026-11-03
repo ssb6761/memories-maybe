@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useBackToClose } from "@/lib/useBackToClose";
+import CloseIcon from "./CloseIcon";
 
 interface Props {
   open: boolean;
@@ -56,15 +57,15 @@ export default function InviteSheet({ open, shareId, tripName, onClose }: Props)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5 pb-[18vh]" onClick={onClose}>
       <div
         className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-pop animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">친구 초대</h2>
-          <button type="button" onClick={onClose} className="text-ink-400" aria-label="닫기">
-            ✕
+          <button type="button" onClick={onClose} className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="닫기">
+            <CloseIcon />
           </button>
         </div>
         <p className="mb-4 text-xs leading-relaxed text-ink-500">

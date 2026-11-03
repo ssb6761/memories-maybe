@@ -5,6 +5,7 @@ import { ScheduleItem } from "@/lib/types";
 import TimeField from "./TimeField";
 import { PhotoButton, PhotoThumbs, usePhotoAttach } from "./PhotoAttach";
 import { useBackToClose } from "@/lib/useBackToClose";
+import CloseIcon from "./CloseIcon";
 
 interface Props {
   open: boolean;
@@ -77,8 +78,8 @@ export default function MemoModal({ open, day, initial, onClose, onSave, onDelet
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-pop animate-fade-in">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">{initial ? "시간/메모 수정" : `DAY ${day} 시간/메모 추가`}</h2>
-          <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-600" aria-label="닫기">
-            ✕
+          <button type="button" onClick={onClose} className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="닫기">
+            <CloseIcon />
           </button>
         </div>
 

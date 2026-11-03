@@ -83,9 +83,9 @@ export default function DestinationPicker({ open, selected, onClose, onConfirm }
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-4 pb-2 pt-3">
-          <button onClick={onClose} className="text-ink-500" aria-label="뒤로">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <button type="button" onClick={onClose} className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-600 active:bg-ink-100" aria-label="뒤로">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
           <h1 className="text-base font-bold text-ink-900">어디로 떠나세요?</h1>

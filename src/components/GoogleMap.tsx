@@ -56,7 +56,8 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
   );
   // 좌표 목록이 바뀔 때만 지도 영역을 다시 맞춘다. 예전엔 핀을 누를 때마다(선택이 바뀔 때마다)
   // 다시 맞추느라 확대해서 보던 화면이 튀었다.
-  const coordKey = withCoords.map((i) => `${i.lat},${i.lng}`).join("|");
+  // 순서만 바뀐 경우(일정 편집 중 미리보기)엔 영역을 다시 맞추지 않도록 정렬해서 비교한다.
+  const coordKey = withCoords.map((i) => `${i.lat},${i.lng}`).sort().join("|");
 
   // 지도 영역 맞추기: 장소가 있으면 그 장소들이 다 보이게, 하나도 없는 DAY면 여행지(나라/도시)로.
   // 예전엔 장소가 없으면 아무것도 안 해서 이전 DAY 위치가 그대로 남거나 서울이 보였다.

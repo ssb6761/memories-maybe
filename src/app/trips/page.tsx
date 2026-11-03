@@ -46,6 +46,7 @@ export default function TripsPage() {
   }, []);
 
   const [showOnlineForm, setShowOnlineForm] = useState(false);
+  const [showJoinForm, setShowJoinForm] = useState(false);
   const [onlineName, setOnlineName] = useState("");
   const [onlineDestination, setOnlineDestination] = useState("");
   const [onlineStart, setOnlineStart] = useState("");
@@ -186,14 +187,6 @@ export default function TripsPage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-ink-900">내 여행</h1>
         <div className="flex shrink-0 items-center gap-2">
-          {isRemoteEnabled() && (
-            <button
-              onClick={() => setShowOnlineForm((v) => !v)}
-              className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-card active:scale-95"
-            >
-              + 여행 만들기
-            </button>
-          )}
           <Link
             href="/settings"
             className="flex items-center gap-1 rounded-full border border-ink-200 px-3 py-2 text-sm font-semibold text-ink-600 active:scale-95"
@@ -211,23 +204,45 @@ export default function TripsPage() {
         </div>
       </div>
 
+      {/* 설정 아래: 여행 만들기 / 초대 코드로 참여하기 / 백업 파일 가져오기 */}
       {isRemoteEnabled() && (
-        <Link
-          href="/import"
-          className="mt-4 flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3.5 active:scale-[0.99]"
-        >
-          <Emoji e="🧳" size={26} />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-brand-700">트리플 일정 가져오기</span>
-            <span className="block text-xs text-brand-600/80">공유 링크만 붙여넣으면 날짜별 일정이 그대로 옮겨져요</span>
-          </span>
-          <span className="text-brand-400" aria-hidden>
-            ›
-          </span>
-        </Link>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[
+            { key: "create", icon: "✈️", label: "여행 만들기", on: showOnlineForm },
+            { key: "join", icon: "🎟️", label: "초대 코드로\n참여하기", on: showJoinForm },
+          ].map((b) => (
+            <button
+              key={b.key}
+              type="button"
+              onClick={() => {
+                if (b.key === "create") {
+                  setShowOnlineForm((v) => !v);
+                  setShowJoinForm(false);
+                } else {
+                  setShowJoinForm((v) => !v);
+                  setShowOnlineForm(false);
+                }
+              }}
+              className={`flex flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-3 active:scale-[0.98] ${
+                b.on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-100 bg-ink-50 text-ink-700"
+              }`}
+            >
+              <Emoji e={b.icon} size={24} />
+              <span className="whitespace-pre-line text-center text-[12px] font-semibold leading-tight">{b.label}</span>
+            </button>
+          ))}
+          <Link
+            href="/import"
+            className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-ink-100 bg-ink-50 px-1 py-3 text-ink-700 active:scale-[0.98]"
+          >
+            <Emoji e="📂" size={24} />
+            <span className="whitespace-pre-line text-center text-[12px] font-semibold leading-tight">{"백업 파일\n가져오기"}</span>
+          </Link>
+        </div>
       )}
 
-      <div className="mt-5 rounded-2xl border border-ink-100 bg-ink-100/40 p-4">
+      {(!isRemoteEnabled() || showOnlineForm || showJoinForm) && (
+      <div className="mt-3 rounded-2xl border border-ink-100 bg-ink-100/40 p-4">
         {!isRemoteEnabled() ? (
           <p className="text-xs leading-relaxed text-ink-600">
             아직 여행 공유 서버(Cloudflare Worker)가 연결되어 있지 않아 여행을 만들 수 없어요.{" "}
@@ -296,11 +311,13 @@ export default function TripsPage() {
               </form>
             )}
 
-            <form onSubmit={handleJoin} className={`flex gap-2 ${showOnlineForm ? "mt-3" : ""}`}>
+            {showJoinForm && (
+            <form onSubmit={handleJoin} className="flex gap-2">
               <ClearableInput
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="초대 코드로 참여하기 (예: BALI2024)"
+                placeholder="초대 코드 (예: BALI2024)"
+                autoFocus
                 className="flex-1 rounded-xl border border-ink-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
               />
               <button
@@ -311,10 +328,12 @@ export default function TripsPage() {
                 {joining ? "확인 중..." : "참여"}
               </button>
             </form>
-            {joinError && <p className="mt-2 text-xs font-medium text-red-500">{joinError}</p>}
+            )}
+            {showJoinForm && joinError && <p className="mt-2 text-xs font-medium text-red-500">{joinError}</p>}
           </>
         )}
       </div>
+      )}
 
       <DestinationPicker
         open={destinationPickerOpen}

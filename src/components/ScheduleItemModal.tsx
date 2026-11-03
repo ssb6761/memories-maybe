@@ -5,6 +5,7 @@ import { CATEGORY_OPTIONS, Category, ScheduleItem } from "@/lib/types";
 import TimeField from "./TimeField";
 import ClearableInput from "./ClearableInput";
 import { useBackToClose } from "@/lib/useBackToClose";
+import CloseIcon from "./CloseIcon";
 
 interface Props {
   open: boolean;
@@ -108,8 +109,8 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
           <h2 className="text-lg font-bold text-ink-900">
             {initial ? "일정 수정" : `DAY ${day} 일정 추가`}
           </h2>
-          <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-600" aria-label="닫기">
-            ✕
+          <button type="button" onClick={onClose} className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="닫기">
+            <CloseIcon />
           </button>
         </div>
 
@@ -176,7 +177,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
               type="button"
               onClick={onAddExpense}
               disabled={deleting || saving}
-              className="shrink-0 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-600 disabled:opacity-60"
+              className="shrink-0 rounded-xl border border-emerald-300 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-600 disabled:opacity-60"
             >
               비용 추가
             </button>

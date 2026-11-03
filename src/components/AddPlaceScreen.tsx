@@ -27,6 +27,7 @@ import {
 import ClearableInput from "./ClearableInput";
 import Emoji from "./Emoji";
 import { useBackToClose } from "@/lib/useBackToClose";
+import CloseIcon from "./CloseIcon";
 
 // 장소 추가 화면 지도에 미리 찍어둘 "지금 보고 있는 DAY에 이미 넣은 장소"
 export interface SavedPlacePin {
@@ -477,8 +478,8 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
           </svg>
         </button>
         <h1 className="text-base font-bold text-ink-900">{headerTitle}</h1>
-        <button onClick={onClose} className="ml-auto text-ink-400 hover:text-ink-600" aria-label="닫기">
-          ✕
+        <button onClick={onClose} className="-mr-2 ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="닫기">
+          <CloseIcon />
         </button>
       </div>
 

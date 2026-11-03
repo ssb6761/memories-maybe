@@ -139,11 +139,6 @@ export default function ScheduleItemCard({
                     {item.memo}
                   </p>
                 )}
-                {!reorderMode && (item.photos?.length ?? 0) > 0 && (
-                  <div onClick={(e) => e.stopPropagation()} className={item.memo ? "mt-1.5" : ""}>
-                    <PhotoThumbs photos={item.photos!} size={56} />
-                  </div>
-                )}
                 {reorderMode && !item.memo && (item.photos?.length ?? 0) > 0 && (
                   <p className="text-sm text-ink-500">사진 {item.photos!.length}장</p>
                 )}
@@ -194,6 +189,12 @@ export default function ScheduleItemCard({
             </button>
           )}
         </div>
+        {/* 사진: 카드 오른쪽 끝까지 이어지게 놓아서, 옆 사진이 살짝 보이고 옆으로 넘겨 볼 수 있게 */}
+        {isMemo && !reorderMode && (item.photos?.length ?? 0) > 0 && (
+          <div onClick={(e) => e.stopPropagation()} className={`-mr-3.5 ${item.memo ? "mt-1" : "-mt-1"}`}>
+            <PhotoThumbs photos={item.photos!} size={64} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -34,6 +34,17 @@ export default function RemoteSchedulePage({
 
   const totalDays = trip ? totalDaysOf(trip.startDate, trip.endDate) : 1;
   const dayItems = useMemo(() => sortedDayItems(schedule, selectedDay), [schedule, selectedDay]);
+  // 일정 편집(순서 바꾸기·거리순 정렬) 중에는 바꾼 순서를 지도에 미리 보여준다
+  const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);
+  const mapItems = useMemo(() => {
+    if (!previewOrder) return dayItems;
+    const byId = new Map(dayItems.map((i) => [i.id, i]));
+    const ordered = previewOrder.map((id) => byId.get(id)).filter(Boolean) as typeof dayItems;
+    dayItems.forEach((i) => {
+      if (!previewOrder.includes(i.id)) ordered.push(i);
+    });
+    return ordered;
+  }, [dayItems, previewOrder]);
 
   if (!loaded || !trip) {
     return <div className="py-20 text-center text-sm text-ink-500">불러오는 중...</div>;
@@ -56,7 +67,7 @@ export default function RemoteSchedulePage({
 
         {/* 휴대폰: 아래 손잡이를 위아래로 끌어 지도를 넓히거나 줄인다 */}
         <ResizableMap>
-          <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
+          <MapView items={mapItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
         </ResizableMap>
 
         <ScheduleTimeline
@@ -75,6 +86,7 @@ export default function RemoteSchedulePage({
             setSelectedId((cur) => (cur === id ? null : cur));
           }}
           onReorder={reorderSchedule}
+          onPreviewOrder={setPreviewOrder}
           onDeleteMany={async (ids) => {
             await deleteScheduleItems(ids);
             setSelectedId((cur) => (cur && ids.includes(cur) ? null : cur));
@@ -84,7 +96,7 @@ export default function RemoteSchedulePage({
       </div>
 
       <div className="hidden md:block md:h-full md:flex-1">
-        <MapView items={dayItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
+        <MapView items={mapItems} selectedId={selectedId} onSelect={setSelectedId} destination={trip.destination} />
       </div>
     </div>
   );

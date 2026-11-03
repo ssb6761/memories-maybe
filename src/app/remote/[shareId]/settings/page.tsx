@@ -112,8 +112,8 @@ export default function RemoteSettingsPage({ params }: { params: { shareId: stri
                 aria-label="여행 아이콘 바꾸기"
               >
                 <Emoji e={emoji || findDestination(destination)?.flag || "✈️"} size={24} />
-                <span className="absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-ink-700 text-white shadow">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-ink-700 text-white shadow">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path d="M4 20h4L19 9l-4-4L4 16v4z" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
                   </svg>
                 </span>

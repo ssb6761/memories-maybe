@@ -7,8 +7,6 @@ import { api } from "@/lib/api";
 import {
   parseBackupJson,
   parseTripleHtml,
-  parseTripleNextData,
-  TripleImportError,
   type ImportedTrip,
 } from "@/lib/tripleImport";
 import { findDestination } from "@/lib/destinations";
@@ -23,18 +21,11 @@ function dayLabel(startDate: string, day: number) {
   return `${date.getMonth() + 1}.${date.getDate()}(${WEEKDAYS[date.getDay()]})`;
 }
 
-function findLink(text: string) {
-  // 카톡 등에서 "'발리' 일정을 확인해 보세요. https://..." 처럼 문장째 붙여넣어도 링크만 꺼낸다
-  const m = text.match(/https?:\/\/[^\s"'<>]+/);
-  return m ? m[0] : text.trim();
-}
-
-// 트리플 일정 가져오기: 트리플 앱 → 일정 → 공유 → "일정 링크 공유하기"로 받은 링크를 넣으면
+// 백업 파일 가져오기: 미리 받아 둔 백업 JSON(또는 트리플 페이지를 저장한 HTML)을 올리면
 // 날짜별 장소 · 메모 · 항공편을 그대로 새 여행으로 만든다. (가계부는 CSV 파일 가져오기로 따로)
 export default function ImportPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [link, setLink] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [trip, setTrip] = useState<ImportedTrip | null>(null);
@@ -43,28 +34,12 @@ export default function ImportPage() {
 
   function show(parsed: ImportedTrip) {
     if (parsed.items.length === 0) {
-      setError("일정에 장소가 하나도 없어요. 다른 일정 링크인지 확인해주세요.");
+      setError("일정에 장소가 하나도 없어요. 다른 파일인지 확인해주세요.");
       return;
     }
     setTrip(parsed);
     setName(parsed.name);
     setError("");
-  }
-
-  async function handleFetch() {
-    const url = findLink(link);
-    if (!url) return;
-    setLoading(true);
-    setError("");
-    setTrip(null);
-    try {
-      const { cache } = await api.fetchTriple(url);
-      show(parseTripleNextData(cache));
-    } catch (err: any) {
-      setError(err instanceof TripleImportError ? err.message : err?.message ?? "일정을 가져오지 못했어요.");
-    } finally {
-      setLoading(false);
-    }
   }
 
   // 백업 JSON(…_백업.json) 또는 트리플 페이지를 저장한 HTML 파일
@@ -110,35 +85,25 @@ export default function ImportPage() {
             <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
-        <h1 className="text-xl font-bold text-ink-900">트리플 일정 가져오기</h1>
+        <h1 className="text-xl font-bold text-ink-900">백업 파일 가져오기</h1>
       </div>
 
       {!trip && (
         <>
-          <ol className="mb-4 space-y-1 rounded-2xl bg-ink-50 p-4 text-sm leading-relaxed text-ink-600">
-            <li>1. 트리플 앱에서 가져올 일정을 열어요</li>
-            <li>
-              2. 공유 → <b>일정 링크 공유하기</b>로 링크를 복사해요
-            </li>
-            <li>3. 아래에 붙여넣고 "가져오기"를 눌러요</li>
-          </ol>
-
-          <ClearableInput
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            placeholder="https://triple.guide/trips/plan/..."
-            inputMode="url"
-            autoCapitalize="off"
-            autoCorrect="off"
-            className="h-12 w-full rounded-xl border border-ink-300 px-3 text-sm outline-none focus:border-brand-500"
-          />
+          <div className="rounded-2xl bg-ink-50 p-4 text-sm leading-relaxed text-ink-600">
+            미리 받아 둔 <b>…_백업.json</b> 파일을 올리면 날짜별 일정이 그대로 옮겨져요.
+            <br />
+            <span className="text-xs text-ink-400">
+              (트리플 공유 페이지를 PC 크롬에서 Ctrl+S → &quot;웹페이지, HTML만&quot;으로 저장한 파일도 돼요.)
+            </span>
+          </div>
           <button
             type="button"
-            onClick={handleFetch}
-            disabled={!link.trim() || loading}
-            className="mt-3 w-full rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-50"
+            onClick={() => fileRef.current?.click()}
+            disabled={loading}
+            className="mt-4 w-full rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-50"
           >
-            {loading ? "가져오는 중..." : "가져오기"}
+            {loading ? "읽는 중..." : "백업 파일 선택"}
           </button>
 
           {error && (
@@ -147,20 +112,7 @@ export default function ImportPage() {
             </p>
           )}
 
-          <div className="mt-8 border-t border-ink-100 pt-4">
-            <p className="text-xs font-semibold text-ink-500">백업 파일이 있다면</p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-400">
-              미리 받아 둔 <b>…_백업.json</b> 파일을 올리면 트리플이 없어도 그대로 가져와요.
-              <br />
-              (링크가 안 될 때는 PC 크롬에서 공유 링크를 열고 Ctrl+S → "웹페이지, HTML만"으로 저장한 파일도 돼요.)
-            </p>
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="mt-2 rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-semibold text-ink-600"
-            >
-              백업 파일로 가져오기
-            </button>
+          <div>
             <input
               ref={fileRef}
               type="file"
@@ -251,10 +203,10 @@ export default function ImportPage() {
               disabled={creating}
               className="mt-2 w-full py-2 text-sm font-medium text-ink-400"
             >
-              다른 링크 넣기
+              다른 파일 고르기
             </button>
             <p className="text-center text-[11px] text-ink-400">
-              가계부는 공유 링크에 없어서, 여행을 만든 뒤 가계부 → CSV 파일 가져오기로 옮겨주세요.
+              가계부는 여행을 만든 뒤 가계부 → CSV 파일 가져오기로 옮겨주세요.
             </p>
           </div>
         </>
