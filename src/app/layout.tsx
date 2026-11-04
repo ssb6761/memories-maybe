@@ -4,6 +4,7 @@ import "./globals.css";
 import { TripStoreProvider } from "@/lib/store";
 import StorageErrorBanner from "@/components/StorageErrorBanner";
 import AuthGate from "@/components/AuthGate";
+import ViewportFix from "@/components/ViewportFix";
 
 export const metadata: Metadata = {
   title: "추억일지도",
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="ko">
       <body className="min-h-screen bg-[#f7f8fa] font-sans antialiased">
         <TripStoreProvider>
+          <ViewportFix />
           <StorageErrorBanner />
           <AuthGate>{children}</AuthGate>
         </TripStoreProvider>

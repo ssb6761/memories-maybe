@@ -54,6 +54,10 @@ export function useBackToClose(open: boolean, onClose: () => void) {
 
     return () => {
       active = false;
+      // 입력 중이던 칸이 팝업과 함께 사라지면 아이폰 키보드가 화면을 밀어 둔 채 남는 일이 있어
+      // 닫을 때 먼저 입력을 끝내(키보드를 내려) 둔다.
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) ae.blur();
       window.removeEventListener("popstate", onPop);
       // 뒤로 가기가 아니라 직접 닫았으면, 쌓아둔 기록을 빼서 기록이 계속 쌓이지 않게 한다.
       // (그 사이 다른 화면으로 이동했다면 건드리지 않는다)
