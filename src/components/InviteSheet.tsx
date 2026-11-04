@@ -83,7 +83,7 @@ export default function InviteSheet({ open, shareId, tripName, onClose }: Props)
           <button
             type="button"
             onClick={handleCopy}
-            className="h-11 shrink-0 rounded-xl bg-ink-900 px-4 text-sm font-semibold text-white"
+            className="h-11 shrink-0 rounded-xl bg-[#111827] px-4 dark:bg-[#3a404b] text-sm font-semibold text-white"
           >
             {copied ? "복사됨" : "복사"}
           </button>

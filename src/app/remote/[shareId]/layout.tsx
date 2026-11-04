@@ -36,7 +36,7 @@ export default function RemoteTripLayout({
 }
 
 function TripLayoutInner({ children, params }: { children: ReactNode; params: { shareId: string } }) {
-  const { trip, schedule, loaded, exists, error, notMember } = useRemoteTrip(params.shareId);
+  const { trip, schedule, expenses, loaded, exists, error, notMember } = useRemoteTrip(params.shareId);
   const basePath = `/remote/${params.shareId}`;
   const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -131,7 +131,7 @@ function TripLayoutInner({ children, params }: { children: ReactNode; params: { 
       <main className="mx-auto max-w-6xl">{children}</main>
 
       {trip && (
-        <ShareSheet open={exportOpen} trip={trip} schedule={schedule} onClose={() => setExportOpen(false)} />
+        <ShareSheet open={exportOpen} trip={trip} schedule={schedule} expenses={expenses} onClose={() => setExportOpen(false)} />
       )}
 
       {trip && (

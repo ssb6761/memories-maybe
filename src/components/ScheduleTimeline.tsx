@@ -303,13 +303,13 @@ export default function ScheduleTimeline({
                 lineTop={idx > 0}
                 lineBottom={!isLast}
               />
-              {/* 항목 사이 칸: 거리가 있든 없든 높이를 똑같이 두어 간격이 일정하게 보이게 하고,
-                  거리는 세로줄 위에 겹쳐서 작게 표시한다. */}
-              <div className="relative flex h-3 pl-1">
+              {/* 항목 사이 칸: 거리가 있든 없든 높이를 똑같이 두어 간격이 일정하게 보이게 한다.
+                  거리는 시간 글자와 헷갈리지 않게 세로줄 '오른쪽'(카드 사이 빈칸)에 작게 쓴다. */}
+              <div className="relative flex h-4 pl-1">
                 <div className="relative flex w-8 shrink-0 justify-center">
                   {!isLast && <div className="h-full w-[2px] bg-[#bcc2ca]" />}
                   {nextKm !== undefined && (
-                    <span className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-[#f7f8fa] px-0.5 text-[10px] font-medium leading-tight text-ink-400">
+                    <span className="absolute left-[calc(50%+6px)] top-1/2 z-10 -translate-y-1/2 whitespace-nowrap text-[10px] font-medium leading-none text-ink-400">
                       {formatDistance(nextKm)}
                     </span>
                   )}
@@ -352,15 +352,15 @@ export default function ScheduleTimeline({
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => setAddChoiceOpen(true)}
-            className="flex min-w-0 flex-[1.15] items-center justify-center gap-1 rounded-2xl border border-dashed border-ink-300 bg-ink-100/60 px-2 py-3 text-center text-[13px] font-semibold leading-tight text-ink-600 active:scale-[0.99]"
+            className="flex min-w-0 flex-[1.15] items-center justify-center gap-1 rounded-2xl border border-ink-300 bg-white px-2 py-3 text-center text-[13px] font-semibold leading-tight text-ink-700 active:scale-[0.99]"
           >
             항공 및 시간/메모 추가
           </button>
           <button
             onClick={() => setAddPlaceOpen(true)}
-            className="flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-dashed border-brand-300 bg-brand-50 px-2 py-3 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
+            className="flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-brand-500 bg-brand-50 px-2 py-3 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
           >
-            <Emoji e="📍" size={16} /> 장소 추가
+            장소 추가
           </button>
           {items.length > 0 && (
             <button

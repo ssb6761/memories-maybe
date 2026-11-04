@@ -1,35 +1,18 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-        },
-        ink: {
-          // Tailwind 기본 gray 팔레트와 동일한 값(900/700/500/300/100은 기존 값 그대로 유지).
-          // 50/200/400/600/800은 기존에 빠져있어서 text-ink-400 같은 클래스가 실제로는 아무
-          // 색도 적용하지 못하고 있었다 — 같은 gray 스케일의 나머지 단계를 채워 넣었다.
-          50: "#f9fafb",
-          100: "#f3f4f6",
-          200: "#e5e7eb",
-          300: "#d1d5db",
-          400: "#9ca3af",
-          500: "#6b7280",
-          600: "#4b5563",
-          700: "#374151",
-          800: "#1f2937",
-          900: "#111827",
-        },
+        // 색은 CSS 변수로 두고(globals.css), 다크 모드에서는 변수 값만 바꿔 화면 전체가 어둡게 바뀐다.
+        brand: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700].map((k) => [k, `rgb(var(--brand-${k}) / <alpha-value>)`])
+        ),
+        ink: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((k) => [k, `rgb(var(--ink-${k}) / <alpha-value>)`])
+        ),
       },
       fontFamily: {
         sans: [

@@ -297,8 +297,8 @@ export default function ExpensesView({
             </div>
           ) : (
             <div className="mt-3 flex items-stretch gap-2">
-              <div className="flex flex-1 flex-col justify-center rounded-2xl bg-ink-900 px-4 py-3 text-white">
-                <span className="text-[11px] font-medium text-ink-300">
+              <div className="flex flex-1 flex-col justify-center rounded-2xl bg-[#111827] px-4 py-3 text-white dark:bg-[#2b3039]">
+                <span className="text-[11px] font-medium text-white/70">
                   {dayFilter === "all" ? "전체" : dayFilter === "0" ? "여행준비" : `DAY ${dayFilter}`} 지출
                 </span>
                 <span className="text-lg font-extrabold">{formatKRW(grandTotalKRW)}</span>

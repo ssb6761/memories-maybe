@@ -19,6 +19,14 @@ const GROUPS: { title: string; list: string[] }[] = [
 const EMOJI_ONLY =
   /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|[\u200D\uFE0F\u20E3]|[\u{1F3FB}-\u{1F3FF}]|[\u{E0020}-\u{E007F}])+$/u;
 const HAS_EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+// 이모티콘 개수 (👨‍👩‍👧·🇯🇵처럼 여러 글자가 합쳐진 것도 하나로 센다)
+export function countEmoji(text: string) {
+  const t = text.replace(/\s/g, "");
+  const Seg = (Intl as any).Segmenter;
+  if (Seg) return Array.from(new Seg("ko", { granularity: "grapheme" }).segment(t)).length;
+  return (t.match(/\p{Extended_Pictographic}|\p{Regional_Indicator}{2}/gu) ?? []).length;
+}
+
 export function isEmojiOnly(text: string) {
   const t = text.replace(/\s/g, "");
   // ©·® 같은 일반 글자 영역의 기호는 이모티콘으로 치지 않는다
@@ -42,7 +50,7 @@ export default function EmojiPicker({
 }) {
   useBackToClose(open, onClose);
   const [custom, setCustom] = useState("");
-  const [customError, setCustomError] = useState(false);
+  const [customError, setCustomError] = useState<"" | "notEmoji" | "many">("");
   if (!open) return null;
 
   function choose(e: string | "") {
@@ -79,8 +87,10 @@ export default function EmojiPicker({
           <ClearableInput
             value={custom}
             onChange={(e) => {
-              setCustom(e.target.value);
-              setCustomError(false);
+              const v = e.target.value;
+              setCustom(v);
+              // 이모티콘을 두 개 이상 넣으면 바로 알려준다
+              setCustomError(isEmojiOnly(v) && countEmoji(v) > 1 ? "many" : "");
             }}
             placeholder="예: 🐋"
             className={`flex-1 h-[44px] rounded-xl border px-3 text-base outline-none ${
@@ -93,17 +103,25 @@ export default function EmojiPicker({
             onClick={() => {
               const t = custom.replace(/\s/g, "");
               if (!isEmojiOnly(t)) {
-                setCustomError(true);
+                setCustomError("notEmoji");
                 return;
               }
-              choose(Array.from(t).slice(0, 8).join(""));
+              if (countEmoji(t) > 1) {
+                setCustomError("many");
+                return;
+              }
+              choose(t);
             }}
             className="shrink-0 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             적용
           </button>
         </div>
-        {customError && <p className="mt-1.5 text-xs font-medium text-red-500">이모티콘을 선택해주세요.</p>}
+        {customError && (
+          <p className="mt-1.5 text-xs font-medium text-red-500">
+            {customError === "many" ? "하나만 입력해주세요." : "이모티콘을 선택해주세요."}
+          </p>
+        )}
         <div className="mb-4" />
         {GROUPS.map((g) => (
           <div key={g.title} className="mb-3">

@@ -204,41 +204,42 @@ export default function TripsPage() {
         </div>
       </div>
 
-      {/* 설정 아래: 여행 만들기 / 초대 코드로 참여하기 / 백업 파일 가져오기 */}
+      {/* 설정 아래: 가장 중요한 "여행 만들기"를 크게, 자주 안 쓰는 두 가지는 작게 */}
       {isRemoteEnabled() && (
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {[
-            { key: "create", icon: "✈️", label: "여행 만들기", on: showOnlineForm },
-            { key: "join", icon: "🎟️", label: "초대 코드로\n참여하기", on: showJoinForm },
-          ].map((b) => (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setShowOnlineForm((v) => !v);
+              setShowJoinForm(false);
+            }}
+            aria-expanded={showOnlineForm}
+            className={`mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold shadow-card active:scale-[0.99] ${
+              showOnlineForm ? "bg-brand-600 text-white ring-4 ring-brand-100" : "bg-brand-600 text-white"
+            }`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+            </svg>
+            여행 만들기
+          </button>
+          <div className="mt-2 flex items-center justify-center gap-1 text-xs text-ink-400">
             <button
-              key={b.key}
               type="button"
               onClick={() => {
-                if (b.key === "create") {
-                  setShowOnlineForm((v) => !v);
-                  setShowJoinForm(false);
-                } else {
-                  setShowJoinForm((v) => !v);
-                  setShowOnlineForm(false);
-                }
+                setShowJoinForm((v) => !v);
+                setShowOnlineForm(false);
               }}
-              className={`flex flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-3 active:scale-[0.98] ${
-                b.on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-100 bg-ink-50 text-ink-700"
-              }`}
+              className={`rounded-full px-2.5 py-1.5 font-medium ${showJoinForm ? "text-brand-600" : "text-ink-500"}`}
             >
-              <Emoji e={b.icon} size={24} />
-              <span className="whitespace-pre-line text-center text-[12px] font-semibold leading-tight">{b.label}</span>
+              초대 코드로 참여하기
             </button>
-          ))}
-          <Link
-            href="/import"
-            className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-ink-100 bg-ink-50 px-1 py-3 text-ink-700 active:scale-[0.98]"
-          >
-            <Emoji e="📂" size={24} />
-            <span className="whitespace-pre-line text-center text-[12px] font-semibold leading-tight">{"백업 파일\n가져오기"}</span>
-          </Link>
-        </div>
+            <span aria-hidden>·</span>
+            <Link href="/import" className="rounded-full px-2.5 py-1.5 font-medium text-ink-500">
+              백업 파일 가져오기
+            </Link>
+          </div>
+        </>
       )}
 
       {(!isRemoteEnabled() || showOnlineForm || showJoinForm) && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTime, usePref } from "@/lib/prefs";
 import { Expense, ScheduleItem } from "@/lib/types";
 import { categoryColor } from "@/lib/scheduleUtils";
 import Emoji from "./Emoji";
@@ -38,6 +39,7 @@ export default function ScheduleItemCard({
   lineTop = false,
   lineBottom = false,
 }: Props) {
+  const timeFormat = usePref("timeFormat");
   const isMemo = item.kind === "memo";
   const isFlight = item.kind === "flight";
   const flight = item.flight;
@@ -69,7 +71,7 @@ export default function ScheduleItemCard({
           </span>
         )}
         {item.time && (
-          <span className="z-10 mt-1 rounded bg-[#f7f8fa] px-0.5 text-[11px] font-medium leading-tight text-ink-500">{item.time}</span>
+          <span className="z-10 mt-1 whitespace-pre-line rounded bg-[#f7f8fa] px-0.5 text-center text-[11px] font-medium leading-tight text-ink-500">{formatTime(item.time, timeFormat).replace(" ", "\n")}</span>
         )}
       </div>
 
@@ -83,7 +85,7 @@ export default function ScheduleItemCard({
           if (!reorderMode && (e.key === "Enter" || e.key === " ")) onClick();
         }}
         className={`min-w-0 flex-1 rounded-md border bg-white px-3.5 py-3 text-left shadow-card transition
-                    cursor-pointer ${dragging ? "" : "active:scale-[0.99]"}
+                    cursor-pointer ${dragging || (item.photos?.length ?? 0) > 0 ? "" : "active:scale-[0.99]"}
                     ${
                       checked
                         ? "border-red-400 ring-2 ring-red-100"
@@ -117,10 +119,10 @@ export default function ScheduleItemCard({
                 {(flight?.depAirport || flight?.arrAirport || flight?.arrTime) && (
                   <p className="mt-0.5 truncate text-xs text-ink-600">
                     {flight?.depAirport ?? "출발"}
-                    {flight?.depTime ? ` ${flight.depTime}` : ""}
+                    {flight?.depTime ? ` ${formatTime(flight.depTime, timeFormat)}` : ""}
                     {" → "}
                     {flight?.arrAirport ?? "도착"}
-                    {flight?.arrTime ? ` ${flight.arrTime}` : ""}
+                    {flight?.arrTime ? ` ${formatTime(flight.arrTime, timeFormat)}` : ""}
                     {flight?.arrNextDay ? " (+1)" : ""}
                   </p>
                 )}
@@ -192,7 +194,7 @@ export default function ScheduleItemCard({
         {/* 사진: 카드 오른쪽 끝까지 이어지게 놓아서, 옆 사진이 살짝 보이고 옆으로 넘겨 볼 수 있게 */}
         {isMemo && !reorderMode && (item.photos?.length ?? 0) > 0 && (
           <div onClick={(e) => e.stopPropagation()} className={`-mr-3.5 ${item.memo ? "mt-1" : "-mt-1"}`}>
-            <PhotoThumbs photos={item.photos!} size={64} />
+            <PhotoThumbs photos={item.photos!} size={108} />
           </div>
         )}
       </div>

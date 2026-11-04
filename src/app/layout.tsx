@@ -5,6 +5,8 @@ import { TripStoreProvider } from "@/lib/store";
 import StorageErrorBanner from "@/components/StorageErrorBanner";
 import AuthGate from "@/components/AuthGate";
 import ViewportFix from "@/components/ViewportFix";
+import ThemeWatcher from "@/components/ThemeWatcher";
+import { THEME_BOOT_SCRIPT } from "@/lib/prefs";
 
 export const metadata: Metadata = {
   title: "추억일지도",
@@ -28,15 +30,19 @@ export const viewport: Viewport = {
   themeColor: "#7B68EE",
   // 아이폰 노치·홈 바 영역까지 화면을 쓰고, 그만큼은 safe-area 여백으로 비켜 둔다.
   viewportFit: "cover",
-  colorScheme: "light",
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className="min-h-screen bg-[#f7f8fa] font-sans antialiased">
         <TripStoreProvider>
           <ViewportFix />
+          <ThemeWatcher />
           <StorageErrorBanner />
           <AuthGate>{children}</AuthGate>
         </TripStoreProvider>

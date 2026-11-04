@@ -3,7 +3,7 @@
 //  - 사진/PDF: 일정을 canvas에 직접 그린다(한글·이모지는 기기 글꼴 사용).
 //  - PDF: canvas를 JPEG로 바꿔 페이지마다 넣은 최소 구성의 PDF 파일을 직접 만든다.
 //  - 엑셀: xlsx(압축 안 한 zip + XML)를 직접 만든다.
-import type { ScheduleItem, Trip } from "./types";
+import type { Expense, ScheduleItem, Trip } from "./types";
 import { categoryColor, sortedDayItems, totalDaysOf } from "./scheduleUtils";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -378,7 +378,48 @@ export function exportXlsx(trip: Trip, schedule: ScheduleItem[]): File {
     });
   }
   const widths = [6, 16, 6, 8, 8, 30, 10, 40, 34, 50];
-  return new File([buildXlsx(rows, "일정", widths)], `${safeName(trip.name)}.xlsx`, {
+  return new File([buildXlsx(rows, "일정", widths)], `${safeName(trip.name)}_일정.xlsx`, {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
+// 가계부 엑셀: 날짜 순서대로 지출 항목을 정리한다.
+export function exportExpensesXlsx(trip: Trip, expenses: Expense[]): File {
+  const header = ["DAY", "날짜", "항목", "카테고리", "금액", "통화", "원화 환산", "결제수단", "결제한 사람", "나눠 낼 사람", "장소", "메모"];
+  const rows: (string | number)[][] = [header];
+  const sorted = [...expenses].sort(
+    (a, b) =>
+      (a.day ?? 0) - (b.day ?? 0) ||
+      (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+      a.createdAt.localeCompare(b.createdAt)
+  );
+  let total = 0;
+  for (const e of sorted) {
+    let dateText = "여행준비";
+    if (e.day) {
+      const dt = dayDate(trip.startDate, e.day);
+      dateText = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")} (${WEEKDAYS[dt.getDay()]})`;
+    }
+    total += e.amountKRW || 0;
+    rows.push([
+      e.day ? e.day : "",
+      dateText,
+      e.title,
+      e.category ?? "",
+      e.amount,
+      e.currency,
+      Math.round(e.amountKRW || 0),
+      e.paymentMethod ?? "",
+      (e.paidBy ?? []).join(", "),
+      (e.splitWith ?? []).join(", "),
+      e.place ?? "",
+      e.memo ?? "",
+    ]);
+  }
+  rows.push([]);
+  rows.push(["", "합계", "", "", "", "", Math.round(total)]);
+  const widths = [6, 16, 24, 10, 12, 6, 12, 8, 18, 22, 20, 40];
+  return new File([buildXlsx(rows, "가계부", widths)], `${safeName(trip.name)}_가계부.xlsx`, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
 }
@@ -526,7 +567,10 @@ export function canShareFiles(files: File[]) {
 // 반드시 버튼을 누른 그 순간에 불러야 한다(아이폰은 누른 직후가 아니면 공유 창을 막는다).
 export async function shareFiles(files: File[], title: string) {
   try {
-    await navigator.share({ files, title });
+    // 제목·글을 같이 넘기면 아이폰 "파일에 저장"에서 여행 제목이 적힌 텍스트 파일이 하나 더
+    // 저장된다 → 파일만 넘긴다. (title 인자는 호환을 위해 남겨 둠)
+    void title;
+    await navigator.share({ files });
   } catch (err: any) {
     if (err?.name === "AbortError") return; // 사용자가 닫음
     throw err;

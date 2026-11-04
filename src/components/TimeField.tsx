@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { formatTime, usePref } from "@/lib/prefs";
 
 interface Props {
   value: string; // "HH:mm" 또는 ""
@@ -23,18 +24,21 @@ export function formatTimeKo(value: string) {
 // 겹쳐둔다. 박스를 누르면 기기 기본 시간 선택기(아이폰 휠 등)가 그대로 뜬다.
 export default function TimeField({ value, onChange, className = "" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const timeFormat = usePref("timeFormat");
 
   return (
     <div
       className={`relative flex h-[42px] w-full min-w-0 items-center rounded-xl border border-ink-300 bg-white px-3 text-sm focus-within:border-brand-500 ${className}`}
     >
       <span className={`flex-1 truncate ${value ? "text-ink-900" : "text-ink-400"}`}>
-        {value ? formatTimeKo(value) : "시간 선택"}
+        {value ? formatTime(value, timeFormat) : "시간 선택"}
       </span>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0 text-ink-400" aria-hidden>
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-        <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+      {!value && (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0 text-ink-400" aria-hidden>
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+          <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      )}
       <input
         ref={inputRef}
         type="time"
@@ -49,16 +53,21 @@ export default function TimeField({ value, onChange, className = "" }: Props) {
           }
         }}
         aria-label="시간"
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        // 시간이 들어 있으면 오른쪽 지우기(×) 자리는 비워 둬서, ×를 누를 때 시간 선택기가 다시 뜨지 않게 한다
+        className={`absolute inset-y-0 left-0 h-full cursor-pointer opacity-0 ${value ? "right-11" : "right-0"}`}
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="relative z-10 ml-1 shrink-0 px-1 text-xs text-ink-400"
+          className="relative z-10 -mr-3 flex h-full w-11 shrink-0 items-center justify-center text-ink-400 active:text-ink-700"
           aria-label="시간 지우기"
         >
-          ✕
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink-200 text-ink-600">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          </span>
         </button>
       )}
     </div>

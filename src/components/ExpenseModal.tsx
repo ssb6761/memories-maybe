@@ -470,7 +470,7 @@ export default function ExpenseModal({
                 <button
                   type="button"
                   onClick={applyRateInput}
-                  className="shrink-0 rounded-lg bg-ink-900 px-3 py-2 text-xs font-semibold text-white"
+                  className="shrink-0 rounded-lg bg-[#111827] px-3 dark:bg-[#3a404b] py-2 text-xs font-semibold text-white"
                 >
                   적용
                 </button>

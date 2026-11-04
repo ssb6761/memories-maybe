@@ -31,6 +31,7 @@ function bottomHeightFor(el: HTMLElement | null) {
 export default function ResizableMap({ children }: { children: ReactNode }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [bottomH, setBottomH] = useState(420);
   const expandedRef = useRef(expanded);
@@ -55,6 +56,22 @@ export default function ResizableMap({ children }: { children: ReactNode }) {
     // 손잡이가 항상 보이도록 화면 맨 위로
     if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  // 지도를 만지면(옮기기·확대·핀 선택) 일정 목록이 자동으로 내려가고 지도가 커진다
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
+    const onDown = () => {
+      if (!expandedRef.current) setMode(true);
+    };
+    el.addEventListener("pointerdown", onDown, { passive: true });
+    el.addEventListener("touchstart", onDown, { passive: true });
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("touchstart", onDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 손잡이 위에서의 터치는 화면 스크롤로 넘어가지 않게 막고(passive: false),
   // 손을 뗄 때 쓸어넘긴 방향으로 위치를 정한다.
@@ -124,6 +141,7 @@ export default function ResizableMap({ children }: { children: ReactNode }) {
   return (
     <div ref={wrapRef} className="md:hidden">
       <div
+        ref={mapRef}
         className="overflow-hidden transition-[height] duration-300 ease-out"
         style={{ height: expanded ? bottomH : MID_H }}
       >

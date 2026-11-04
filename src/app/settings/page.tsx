@@ -5,6 +5,7 @@ import Link from "next/link";
 import { clearToken, logout, setCachedUser, useAuthUser } from "@/lib/auth";
 import { api } from "@/lib/api";
 import ClearableInput from "@/components/ClearableInput";
+import { setPref, usePref, type ThemePref, type TimeFormatPref } from "@/lib/prefs";
 
 const PROVIDER_LABEL: Record<string, string> = {
   kakao: "카카오",
@@ -21,6 +22,8 @@ export default function SettingsPage() {
   const [savingName, setSavingName] = useState(false);
   const [error, setError] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
+  const theme = usePref("theme");
+  const timeFormat = usePref("timeFormat");
 
   useEffect(() => {
     if (user) setDisplayName(user.name);
@@ -111,6 +114,30 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {/* 화면: 다크 모드 · 시간 표기 (이 기기에만 저장) */}
+      <section className="mt-4 rounded-2xl border border-ink-100 p-4">
+        <h2 className="mb-3 text-sm font-bold text-ink-900">화면</h2>
+        <p className="mb-1.5 text-xs font-semibold text-ink-500">다크 모드</p>
+        <Segmented<ThemePref>
+          value={theme}
+          onChange={(v) => setPref("theme", v)}
+          options={[
+            { value: "system", label: "시스템 설정" },
+            { value: "light", label: "라이트" },
+            { value: "dark", label: "다크" },
+          ]}
+        />
+        <p className="mb-1.5 mt-4 text-xs font-semibold text-ink-500">시간 표기</p>
+        <Segmented<TimeFormatPref>
+          value={timeFormat}
+          onChange={(v) => setPref("timeFormat", v)}
+          options={[
+            { value: "12", label: "12시간 (오후 1:30)" },
+            { value: "24", label: "24시간 (13:30)" },
+          ]}
+        />
+      </section>
+
       <button
         type="button"
         onClick={() => {
@@ -166,6 +193,35 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 여러 개 중 하나를 고르는 칸 (아이폰 설정의 세그먼트 버튼 모양)
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  return (
+    <div className="flex gap-1 rounded-xl bg-ink-100 p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={`flex-1 rounded-lg px-1 py-2 text-[13px] font-semibold transition ${
+            value === o.value ? "bg-white text-ink-900 shadow-card" : "text-ink-500"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

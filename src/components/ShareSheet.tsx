@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ScheduleItem, Trip } from "@/lib/types";
-import { canShareFiles, downloadFiles, exportImages, exportPdf, exportXlsx, shareFiles } from "@/lib/exportTrip";
+import type { Expense, ScheduleItem, Trip } from "@/lib/types";
+import {
+  canShareFiles,
+  downloadFiles,
+  exportExpensesXlsx,
+  exportImages,
+  exportPdf,
+  exportXlsx,
+  shareFiles,
+} from "@/lib/exportTrip";
 import { useBackToClose } from "@/lib/useBackToClose";
 import Emoji from "./Emoji";
 import CloseIcon from "./CloseIcon";
@@ -16,16 +24,20 @@ export default function ShareSheet({
   open,
   trip,
   schedule,
+  expenses = [],
   onClose,
 }: {
   open: boolean;
   trip: Trip;
   schedule: ScheduleItem[];
+  expenses?: Expense[];
   onClose: () => void;
 }) {
   useBackToClose(open, onClose);
   const [kind, setKind] = useState<Kind>("image");
   const [imageMode, setImageMode] = useState<"all" | "byDay">("all");
+  // 엑셀: 일정 / 가계부 중 무엇을 받을지 (처음엔 둘 다)
+  const [excelParts, setExcelParts] = useState({ schedule: true, expenses: true });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [files, setFiles] = useState<File[] | null>(null);
@@ -53,7 +65,7 @@ export default function ShareSheet({
   useEffect(() => {
     setFiles(null);
     setError("");
-  }, [kind, imageMode]);
+  }, [kind, imageMode, excelParts]);
 
   if (!open) return null;
 
@@ -67,7 +79,10 @@ export default function ShareSheet({
       let out: File[] = [];
       if (kind === "image") out = await exportImages(trip, schedule, imageMode);
       else if (kind === "pdf") out = [await exportPdf(trip, schedule)];
-      else out = [exportXlsx(trip, schedule)];
+      else {
+        if (excelParts.schedule) out.push(exportXlsx(trip, schedule));
+        if (excelParts.expenses) out.push(exportExpensesXlsx(trip, expenses));
+      }
       setFiles(out);
     } catch (err: any) {
       setError(err?.message ?? "파일을 만들지 못했어요.");
@@ -149,12 +164,58 @@ export default function ShareSheet({
           </div>
         )}
         {kind === "pdf" && (
-          <p className="mt-4 text-xs leading-relaxed text-ink-500">A4 크기로 날짜 순서대로 정리한 PDF를 만들어요.</p>
+          <p className="mt-4 text-xs leading-relaxed text-ink-500">A4 크기인 PDF를 만들어요.</p>
         )}
         {kind === "excel" && (
-          <p className="mt-4 text-xs leading-relaxed text-ink-500">
-            날짜 · 시간 · 장소 · 카테고리 · 메모 · 항공편 · 구글 지도 링크를 표로 정리해요.
-          </p>
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold text-ink-500">엑셀 만들기</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: "schedule" as const, label: "일정", sub: "날짜별 일정표" },
+                { key: "expenses" as const, label: "가계부", sub: "지출 내역" },
+              ].map((o) => {
+                const on = excelParts[o.key];
+                return (
+                  <button
+                    type="button"
+                    key={o.key}
+                    onClick={() => setExcelParts((p) => ({ ...p, [o.key]: !p[o.key] }))}
+                    aria-pressed={on}
+                    className={`relative rounded-xl border px-3 py-2.5 text-left ${
+                      on ? "border-brand-500 bg-brand-50" : "border-ink-200"
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold text-ink-900">{o.label}</span>
+                    <span className="block text-[11px] text-ink-400">{o.sub}</span>
+                    <span
+                      className={`absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border-2 ${
+                        on ? "border-brand-600 bg-brand-600 text-white" : "border-ink-300 text-transparent"
+                      }`}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M5 12l5 5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-ink-500">
+              {excelParts.expenses && !excelParts.schedule ? (
+                <>
+                  날짜•항목•금액•결제한 사람•메모를
+                  <br />
+                  엑셀 파일로 만들어요.
+                </>
+              ) : (
+                <>
+                  날짜•시간•장소•카테고리•메모•항공편•구글 지도 링크를
+                  <br />
+                  엑셀 파일로 만들어요.
+                </>
+              )}
+            </p>
+          </div>
         )}
 
         {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">⚠️ {error}</p>}
@@ -163,7 +224,7 @@ export default function ShareSheet({
           <button
             type="button"
             onClick={make}
-            disabled={busy}
+            disabled={busy || (kind === "excel" && !excelParts.schedule && !excelParts.expenses)}
             className="mt-5 w-full rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
           >
             {busy ? "만드는 중..." : "만들기"}
@@ -220,6 +281,8 @@ export default function ShareSheet({
                 ? selectedFiles.length
                   ? `${files.length}장 중 ${selectedFiles.length}장 선택됨`
                   : "공유할 날짜를 선택해주세요"
+                : files.length > 1
+                ? `준비됐어요 · ${files.map((f) => f.name).join(", ")}`
                 : `준비됐어요 · ${files[0]?.name ?? ""}`}
             </p>
             <button

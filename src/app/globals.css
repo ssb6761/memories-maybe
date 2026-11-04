@@ -2,11 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── 기기별 화면 맞춤 (아이폰·갤럭시 앱/웹, PC 웹) ───────────────────── */
+/* ── 색 (밝은 화면 / 어두운 화면) ─────────────────────────────────────
+   tailwind.config의 brand·ink 색은 아래 변수를 쓴다. html에 "dark" 클래스가 붙으면
+   (설정 → 화면 → 다크 모드) 변수 값만 바뀌어 화면 전체가 어두워진다. */
 :root {
-  /* 삼성 인터넷·크롬의 "강제 다크 모드"가 색을 멋대로 뒤집지 않게 밝은 화면으로 고정 */
+  /* 삼성 인터넷·크롬의 "강제 다크 모드"가 색을 멋대로 뒤집지 않게, 앱이 직접 정한 색만 쓴다 */
   color-scheme: light;
+  --brand-50: 239 246 255;
+  --brand-100: 219 234 254;
+  --brand-200: 191 219 254;
+  --brand-300: 147 197 253;
+  --brand-400: 96 165 250;
+  --brand-500: 59 130 246;
+  --brand-600: 37 99 235;
+  --brand-700: 29 78 216;
+  --ink-50: 249 250 251;
+  --ink-100: 243 244 246;
+  --ink-200: 229 231 235;
+  --ink-300: 209 213 219;
+  --ink-400: 156 163 175;
+  --ink-500: 107 114 128;
+  --ink-600: 75 85 99;
+  --ink-700: 55 65 81;
+  --ink-800: 31 41 55;
+  --ink-900: 17 24 39;
+  --surface: 255 255 255; /* 카드·팝업 바탕 */
+  --page: 247 248 250; /* 화면 바탕 */
+  --rail: 188 194 202; /* 일정 세로선 */
 }
+html.dark {
+  color-scheme: dark;
+  --brand-50: 23 37 66;
+  --brand-100: 30 52 95;
+  --brand-200: 44 76 138;
+  --brand-300: 70 110 190;
+  --brand-400: 96 165 250;
+  --brand-500: 59 130 246;
+  --brand-600: 59 130 246;
+  --brand-700: 147 187 253;
+  --ink-50: 30 33 39;
+  --ink-100: 38 42 49;
+  --ink-200: 52 57 66;
+  --ink-300: 75 81 91;
+  --ink-400: 120 127 138;
+  --ink-500: 152 159 170;
+  --ink-600: 180 186 195;
+  --ink-700: 206 211 217;
+  --ink-800: 226 229 233;
+  --ink-900: 240 242 245;
+  --surface: 30 33 39;
+  --page: 20 22 27;
+  --rail: 70 76 86;
+}
+
+/* 흰 바탕·고정 색으로 적어 둔 곳들을 어두운 화면에 맞게 바꾼다 */
+html.dark .bg-white { background-color: rgb(var(--surface)); }
+html.dark .bg-white\/95 { background-color: rgb(var(--surface) / 0.95); }
+html.dark .bg-white\/90 { background-color: rgb(var(--surface) / 0.9); }
+html.dark .border-white { border-color: rgb(var(--surface)); }
+html.dark .bg-\[\#f7f8fa\] { background-color: rgb(var(--page)); }
+html.dark .bg-\[\#bcc2ca\] { background-color: rgb(var(--rail)); }
+html.dark .bg-red-50 { background-color: rgb(127 29 29 / 0.25); }
+html.dark .border-red-100,
+html.dark .border-red-200 { border-color: rgb(153 27 27 / 0.6); }
+html.dark .ring-red-100 { --tw-ring-color: rgb(127 29 29 / 0.5); }
+html.dark .bg-emerald-50 { background-color: rgb(6 78 59 / 0.35); }
+html.dark .border-emerald-300 { border-color: rgb(16 185 129 / 0.6); }
+html.dark .text-emerald-600 { color: rgb(52 211 153); }
+html.dark .bg-sky-50 { background-color: rgb(12 74 110 / 0.3); }
+html.dark .bg-sky-100 { background-color: rgb(12 74 110 / 0.5); }
+html.dark .border-sky-200 { border-color: rgb(14 116 144 / 0.6); }
+html.dark .text-sky-700 { color: rgb(125 211 252); }
+html.dark .text-red-500,
+html.dark .text-red-600 { color: rgb(248 113 113); }
+
+/* ── 기기별 화면 맞춤 (아이폰·갤럭시 앱/웹, PC 웹) ───────────────────── */
 
 html {
   /* 가로로 돌렸을 때 아이폰이 글자를 멋대로 키우지 않게 */
@@ -20,8 +90,8 @@ body {
 }
 
 body {
-  background-color: #f7f8fa;
-  color: #111827;
+  background-color: rgb(var(--page));
+  color: rgb(var(--ink-900));
   -webkit-tap-highlight-color: transparent;
   /* 좁은 화면에서 옆으로 밀리는(가로 스크롤) 현상 방지 */
   overflow-x: hidden;
@@ -66,7 +136,7 @@ img {
 }
 
 .timeline-rail {
-  background-image: linear-gradient(to bottom, #d1d5db 0, #d1d5db 100%);
+  background-image: linear-gradient(to bottom, rgb(var(--ink-300)) 0, rgb(var(--ink-300)) 100%);
   background-repeat: repeat-y;
   background-size: 2px 100%;
   background-position: center;

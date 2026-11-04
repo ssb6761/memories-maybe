@@ -168,7 +168,7 @@ export function PhotoThumbs({
                   e.stopPropagation();
                   onRemove(id);
                 }}
-                className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink-800 text-white shadow"
+                className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/75 text-white shadow ring-1 ring-white/70"
                 aria-label="사진 빼기"
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
