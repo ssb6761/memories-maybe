@@ -385,11 +385,11 @@ export function exportXlsx(trip: Trip, schedule: ScheduleItem[]): File {
 
 // 가계부 엑셀: 트리플 가계부 내보내기(CSV)와 같은 칸·같은 표기로 만든다.
 // 그래야 이 파일을 그대로 "엑셀 파일 업로드"에 올려도 다시 정상적으로 들어온다.
-// (결제수단은 결제한 사람 앞에, 메모는 맨 뒤에. 이 앱엔 "나눠 낼 사람"이 없어서 그 칸은 뺐다)
+// (칸 순서는 이 앱에 맞게 바꿨고, 이 앱엔 "나눠 낼 사람"이 없어서 그 칸은 뺐다. 다시 올릴 때는 칸 이름으로 읽는다)
 export function exportExpensesXlsx(trip: Trip, expenses: Expense[]): File {
   const header = [
-    "일차", "항목명", "카테고리", "금액", "통화", "통화 당 원화", "원화 환산", "장소",
-    "나만보기 비용", "결제수단", "결제한 사람", "결제한 사람 수", "메모",
+    "일차", "항목명", "카테고리", "금액", "통화", "통화 당 원화", "원화 환산",
+    "결제수단", "결제한 사람", "결제한 사람 수", "나만보기 비용", "장소", "메모",
   ];
   const rows: (string | number)[][] = [header];
   const sorted = [...expenses].sort(
@@ -413,11 +413,11 @@ export function exportExpensesXlsx(trip: Trip, expenses: Expense[]): File {
       e.currency,
       e.rateToKRW ?? 1,
       krw,
-      e.place ?? "",
-      e.privateOnly ? "O" : "X",
       e.paymentMethod ?? "",
       paidBy.join(", "),
       e.paidByCount || paidBy.length || 1,
+      e.privateOnly ? "O" : "X",
+      e.place ?? "",
       e.memo ?? "",
     ]);
   }
@@ -428,7 +428,7 @@ export function exportExpensesXlsx(trip: Trip, expenses: Expense[]): File {
   rows.push([]);
   rows.push(["▼ 총 금액"]);
   rows.push(["KRW", Math.round(totalKRW)]);
-  const widths = [11, 26, 9, 11, 6, 11, 12, 18, 12, 9, 16, 12, 36];
+  const widths = [11, 26, 9, 11, 6, 11, 12, 9, 16, 12, 12, 18, 36];
   return new File([buildXlsx(rows, "가계부", widths)], `${safeName(trip.name)}_가계부.xlsx`, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });

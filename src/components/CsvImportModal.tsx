@@ -107,7 +107,11 @@ export default function CsvImportModal({
       if (onImportRaw) {
         // 서버에 한 번에 보내면 진행률을 알 수 없어서, 10줄씩 나눠 보내며 진행률을 표시한다.
         // (줄 내용으로 중복을 확인하기 때문에 나눠 보내도 결과는 같다.)
-        const [header, ...rows] = splitCsvRecords(rawText);
+        const [header, ...allRows] = splitCsvRecords(rawText);
+        // "▼ 통화별 금액 / ▼ 총 금액" 요약부터는 비용이 아니라서 보내지 않는다.
+        // (예전엔 10줄씩 나눠 보낼 때 요약 줄이 따로 떨어져 나가 "총 금액"이 비용으로 저장됐다)
+        const cut = allRows.findIndex((r) => r.replace(/^["\s]+/, "").startsWith("▼"));
+        const rows = cut >= 0 ? allRows.slice(0, cut) : allRows;
         const chunks: string[][] = [];
         for (let i = 0; i < rows.length; i += CHUNK_SIZE) chunks.push(rows.slice(i, i + CHUNK_SIZE));
         if (chunks.length === 0) chunks.push([]);

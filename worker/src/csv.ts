@@ -60,7 +60,8 @@ export function csvToObjects(text: string): { headers: string[]; rows: Record<st
   for (const r of rows.slice(1)) {
     const firstCell = (r[0] ?? "").trim();
     if (firstCell.startsWith("▼")) break;
-    if (r.length < 2 || !r.some((c) => c.trim())) continue;
+    // 요약 줄("KRW, 1,965,060"처럼 칸이 2~3개뿐인 줄)은 비용이 아니다
+    if (r.length < 4 || !r.some((c) => c.trim())) continue;
     dataRows.push(r);
   }
 

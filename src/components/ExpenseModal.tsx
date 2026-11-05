@@ -349,13 +349,11 @@ export default function ExpenseModal({
             className="-mr-2 ml-auto flex h-11 w-11 items-center justify-center rounded-full text-red-500 active:bg-red-50 disabled:opacity-50"
             aria-label="삭제"
           >
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+            {/* 꽉 찬(채워진) 휴지통 모양 */}
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden>
               <path
-                d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0l-.8 12a2 2 0 01-2 1.9H9.8a2 2 0 01-2-1.9L7 7m3 4v6m4-6v6"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                fill="currentColor"
+                d="M9 3a1 1 0 00-1 1v1H4.5a1 1 0 000 2h15a1 1 0 100-2H16V4a1 1 0 00-1-1H9zM5.8 9l.9 10.2A2 2 0 008.7 21h6.6a2 2 0 002-1.8L18.2 9H5.8zm4.2 2.5a.9.9 0 01.9.9v5.2a.9.9 0 01-1.8 0v-5.2a.9.9 0 01.9-.9zm4 0a.9.9 0 01.9.9v5.2a.9.9 0 01-1.8 0v-5.2a.9.9 0 01.9-.9z"
               />
             </svg>
           </button>
