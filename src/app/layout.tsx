@@ -6,7 +6,7 @@ import StorageErrorBanner from "@/components/StorageErrorBanner";
 import AuthGate from "@/components/AuthGate";
 import ViewportFix from "@/components/ViewportFix";
 import ThemeWatcher from "@/components/ThemeWatcher";
-import { THEME_BOOT_SCRIPT } from "@/lib/prefs";
+import { THEME_BOOT_SCRIPT } from "@/lib/themeBoot";
 
 export const metadata: Metadata = {
   title: "추억일지도",

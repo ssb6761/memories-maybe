@@ -1,3 +1,5 @@
+"use client";
+
 import { useSyncExternalStore } from "react";
 
 // 화면 설정(다크 모드·시간 표기). 기기(브라우저)마다 따로 저장한다.
@@ -50,9 +52,6 @@ export function applyTheme() {
   root.style.colorScheme = dark ? "dark" : "light";
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#16181d" : "#f7f8fa");
 }
-
-// 첫 화면이 그려지기 전에 실행하는 짧은 스크립트(깜빡임 방지). layout.tsx의 <head>에 넣는다.
-export const THEME_BOOT_SCRIPT = `(function(){try{var p=localStorage.getItem('mmpref:theme')||'system';var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;if(d)r.classList.add('dark');r.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
 
 // 시간 표기: "13:44" → 24시간 "13:44" / 12시간 "오후 1:44"
 export function formatTime(value: string | undefined, fmt: TimeFormatPref): string {
