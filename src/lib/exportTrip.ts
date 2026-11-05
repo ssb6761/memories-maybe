@@ -383,9 +383,14 @@ export function exportXlsx(trip: Trip, schedule: ScheduleItem[]): File {
   });
 }
 
-// 가계부 엑셀: 날짜 순서대로 지출 항목을 정리한다.
+// 가계부 엑셀: 트리플 가계부 내보내기(CSV)와 같은 칸·같은 표기로 만든다.
+// 그래야 이 파일을 그대로 "엑셀 파일 업로드"에 올려도 다시 정상적으로 들어온다.
+// (결제수단은 결제한 사람 앞에, 메모는 맨 뒤에. 이 앱엔 "나눠 낼 사람"이 없어서 그 칸은 뺐다)
 export function exportExpensesXlsx(trip: Trip, expenses: Expense[]): File {
-  const header = ["DAY", "날짜", "항목", "카테고리", "금액", "통화", "원화 환산", "결제수단", "결제한 사람", "나눠 낼 사람", "장소", "메모"];
+  const header = [
+    "일차", "항목명", "카테고리", "금액", "통화", "통화 당 원화", "원화 환산", "장소",
+    "나만보기 비용", "결제수단", "결제한 사람", "결제한 사람 수", "메모",
+  ];
   const rows: (string | number)[][] = [header];
   const sorted = [...expenses].sort(
     (a, b) =>
@@ -393,32 +398,37 @@ export function exportExpensesXlsx(trip: Trip, expenses: Expense[]): File {
       (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
       a.createdAt.localeCompare(b.createdAt)
   );
-  let total = 0;
+  const byCurrency = new Map<string, number>();
+  let totalKRW = 0;
   for (const e of sorted) {
-    let dateText = "여행준비";
-    if (e.day) {
-      const dt = dayDate(trip.startDate, e.day);
-      dateText = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")} (${WEEKDAYS[dt.getDay()]})`;
-    }
-    total += e.amountKRW || 0;
+    const krw = Math.round((e.amountKRW || 0) * 10) / 10;
+    totalKRW += e.amountKRW || 0;
+    byCurrency.set(e.currency, (byCurrency.get(e.currency) ?? 0) + (e.amount || 0));
+    const paidBy = e.paidBy ?? [];
     rows.push([
-      e.day ? e.day : "",
-      dateText,
+      e.day ? `여행 ${e.day}일차` : "여행준비",
       e.title,
       e.category ?? "",
       e.amount,
       e.currency,
-      Math.round(e.amountKRW || 0),
-      e.paymentMethod ?? "",
-      (e.paidBy ?? []).join(", "),
-      (e.splitWith ?? []).join(", "),
+      e.rateToKRW ?? 1,
+      krw,
       e.place ?? "",
+      e.privateOnly ? "O" : "X",
+      e.paymentMethod ?? "",
+      paidBy.join(", "),
+      e.paidByCount || paidBy.length || 1,
       e.memo ?? "",
     ]);
   }
+  // 트리플처럼 아래에 통화별 금액·총 금액 요약 (다시 올릴 때는 자동으로 건너뛴다)
   rows.push([]);
-  rows.push(["", "합계", "", "", "", "", Math.round(total)]);
-  const widths = [6, 16, 24, 10, 12, 6, 12, 8, 18, 22, 20, 40];
+  rows.push(["▼ 통화별 금액"]);
+  [...byCurrency.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([cur, sum]) => rows.push([cur, sum]));
+  rows.push([]);
+  rows.push(["▼ 총 금액"]);
+  rows.push(["KRW", Math.round(totalKRW)]);
+  const widths = [11, 26, 9, 11, 6, 11, 12, 18, 12, 9, 16, 12, 36];
   return new File([buildXlsx(rows, "가계부", widths)], `${safeName(trip.name)}_가계부.xlsx`, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });

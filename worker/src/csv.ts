@@ -54,11 +54,15 @@ export function csvToObjects(text: string): { headers: string[]; rows: Record<st
   if (rows.length === 0) return { headers: [], rows: [] };
   const headers = rows[0].map((h) => h.trim());
 
-  const dataRows = rows.slice(1).filter((r) => {
+  // "▼ 통화별 금액" 같은 요약이 나오면 거기서부터는 데이터가 아니다.
+  // (엑셀에서 바꾼 표는 끝의 빈칸이 빠져 있을 수 있어서, 칸 수가 모자라도 빈칸으로 채워 읽는다)
+  const dataRows: string[][] = [];
+  for (const r of rows.slice(1)) {
     const firstCell = (r[0] ?? "").trim();
-    if (firstCell.startsWith("▼")) return false;
-    return r.length >= headers.length;
-  });
+    if (firstCell.startsWith("▼")) break;
+    if (r.length < 2 || !r.some((c) => c.trim())) continue;
+    dataRows.push(r);
+  }
 
   const objects = dataRows.map((r) => {
     const obj: Record<string, string> = {};
@@ -84,6 +88,8 @@ const HEADER_ALIASES: Record<string, string[]> = {
   paidByCount: ["결제한 사람 수"],
   splitWith: ["나눠 낼 사람"],
   splitCount: ["나눠 낼 사람 수"],
+  paymentMethod: ["결제수단", "결제 수단"],
+  memo: ["메모"],
 };
 
 function findHeader(headers: string[], key: string): string | undefined {
@@ -137,6 +143,8 @@ export interface ParsedExpenseRow {
   paidByCount: number;
   splitWith: string[];
   splitCount: number;
+  paymentMethod?: string;
+  memo?: string;
   importKey: string;
 }
 
@@ -159,10 +167,12 @@ export function parseTripleExpensesCsv(
   const paidByCountH = findHeader(headers, "paidByCount");
   const splitWithH = findHeader(headers, "splitWith");
   const splitCountH = findHeader(headers, "splitCount");
+  const paymentH = findHeader(headers, "paymentMethod");
+  const memoH = findHeader(headers, "memo");
 
   const mappedKeys = [
     dayH, titleH, categoryH, amountH, currencyH, rateH, amountKRWH,
-    placeH, privateH, paidByH, paidByCountH, splitWithH, splitCountH,
+    placeH, privateH, paidByH, paidByCountH, splitWithH, splitCountH, paymentH, memoH,
   ].filter(Boolean) as string[];
   const unmappedHeaders = headers.filter((h) => !mappedKeys.includes(h));
 
@@ -179,7 +189,8 @@ export function parseTripleExpensesCsv(
     const dayNum = dayRaw ? parseInt(dayRaw.replace(/[^0-9]/g, ""), 10) : undefined;
 
     const paidBy = paidByH ? splitNames(r[paidByH]) : [];
-    let splitWith = splitWithH ? splitNames(r[splitWithH]) : [];
+    // "나눠 낼 사람" 칸이 아예 없는 파일(이 앱에서 내보낸 엑셀)은 결제한 사람이 곧 부담한 사람
+    let splitWith = splitWithH ? splitNames(r[splitWithH]) : paidBy;
     if (splitWith.length === 0) {
       splitWith = defaultSplitWith.length > 0 ? defaultSplitWith : paidBy;
     }
@@ -205,6 +216,8 @@ export function parseTripleExpensesCsv(
       paidByCount,
       splitWith,
       splitCount,
+      paymentMethod: (paymentH && r[paymentH]) || undefined,
+      memo: (memoH && r[memoH]) || undefined,
       importKey: buildImportKey({ day: dayRaw, title, amount: String(amount), currency, place }),
     };
   });

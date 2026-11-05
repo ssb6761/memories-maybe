@@ -79,12 +79,7 @@ export default function ExpenseRow({
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5">
-          <span className="truncate font-semibold text-ink-900">{expense.title}</span>
-          {expense.privateOnly && (
-            <span className="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-500">나만 보기</span>
-          )}
-        </p>
+        <p className="truncate font-semibold text-ink-900">{expense.title}</p>
         <p className="mt-0.5 truncate text-xs text-ink-500">
           {expense.paymentMethod ? `${expense.paymentMethod} · ` : ""}
           결제: {expense.paidBy.join(", ") || "-"}
@@ -111,6 +106,12 @@ export default function ExpenseRow({
         ) : null
       ) : (
         <div className="shrink-0 text-right">
+          {/* 나만 보기 비용은 금액 위에 작게 표시 */}
+          {expense.privateOnly && (
+            <span className="mb-0.5 inline-block rounded bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ink-500">
+              나만 보기
+            </span>
+          )}
           <p className="font-bold text-ink-900">{formatAmount(expense.amount, expense.currency)}</p>
           {showKRW && <p className="text-[11px] text-ink-400">{formatKRWApprox(expense.amountKRW)}</p>}
         </div>

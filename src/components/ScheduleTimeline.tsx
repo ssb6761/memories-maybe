@@ -352,13 +352,13 @@ export default function ScheduleTimeline({
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => setAddChoiceOpen(true)}
-            className="flex min-w-0 flex-[1.15] items-center justify-center gap-1 rounded-2xl border border-ink-300 bg-white px-2 py-4 text-center text-[13px] font-semibold leading-tight text-ink-700 active:scale-[0.99]"
+            className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-2xl border border-ink-300 bg-white px-2 py-3 text-center text-[13px] font-semibold leading-tight text-ink-700 active:scale-[0.99]"
           >
             항공 및 시간/메모 추가
           </button>
           <button
             onClick={() => setAddPlaceOpen(true)}
-            className="flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-brand-500 bg-brand-50 px-2 py-4 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
+            className="flex min-w-0 flex-[1.35] items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-brand-500 bg-brand-50 px-2 py-3 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
           >
             장소 추가
           </button>

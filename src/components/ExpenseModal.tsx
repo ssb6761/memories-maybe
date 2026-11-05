@@ -346,14 +346,14 @@ export default function ExpenseModal({
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="-mr-2 ml-auto flex h-10 w-10 items-center justify-center rounded-full text-red-500 active:bg-red-50 disabled:opacity-50"
+            className="-mr-2 ml-auto flex h-11 w-11 items-center justify-center rounded-full text-red-500 active:bg-red-50 disabled:opacity-50"
             aria-label="삭제"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0l-.8 12a2 2 0 01-2 1.9H9.8a2 2 0 01-2-1.9L7 7m3 4v6m4-6v6"
                 stroke="currentColor"
-                strokeWidth="1.9"
+                strokeWidth="2.4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />

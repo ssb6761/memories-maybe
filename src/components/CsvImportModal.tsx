@@ -145,7 +145,7 @@ export default function CsvImportModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5">
       <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-pop animate-fade-in">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink-900">엑셀 파일 가져오기</h2>
+          <h2 className="text-lg font-bold text-ink-900">엑셀 파일 업로드</h2>
           <button
             onClick={() => {
               if (importing) return;

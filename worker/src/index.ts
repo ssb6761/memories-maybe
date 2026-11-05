@@ -818,14 +818,15 @@ export default {
             await db
               .prepare(
                 `INSERT INTO expenses (id, trip_id, day, title, category, amount, currency, rate_to_krw, amount_krw, place,
-                 private_only, paid_by, paid_by_count, split_with, split_count, source, import_key, created_by, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'csv', ?, ?, ?, ?)`
+                 private_only, paid_by, paid_by_count, split_with, split_count, source, import_key, payment_method, memo,
+                 created_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'csv', ?, ?, ?, ?, ?, ?)`
               )
               .bind(
                 newId("exp"), tripId, row.day ?? null, row.title, row.category, row.amount, row.currency,
                 row.rateToKRW, row.amountKRW, row.place ?? null, row.privateOnly ? 1 : 0,
                 JSON.stringify(row.paidBy), row.paidByCount, JSON.stringify(row.splitWith), row.splitCount,
-                row.importKey, user?.id ?? null, now, now
+                row.importKey, row.paymentMethod ?? null, row.memo ?? null, user?.id ?? null, now, now
               )
               .run();
             existingKeys.add(row.importKey);

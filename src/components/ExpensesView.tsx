@@ -235,7 +235,7 @@ export default function ExpensesView({
                   onClick={() => setCsvOpen(true)}
                   className="ml-auto rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-600"
                 >
-                  엑셀 파일 가져오기
+                  엑셀 파일 업로드
                 </button>
                 {expenses.length > 0 && (
                   <button
