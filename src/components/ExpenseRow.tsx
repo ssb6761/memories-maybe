@@ -79,7 +79,12 @@ export default function ExpenseRow({
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-ink-900">{expense.title}</p>
+        <p className="flex items-center gap-1.5">
+          <span className="truncate font-semibold text-ink-900">{expense.title}</span>
+          {expense.privateOnly && (
+            <span className="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-500">나만 보기</span>
+          )}
+        </p>
         <p className="mt-0.5 truncate text-xs text-ink-500">
           {expense.paymentMethod ? `${expense.paymentMethod} · ` : ""}
           결제: {expense.paidBy.join(", ") || "-"}

@@ -86,6 +86,7 @@ const REQUIRED_COLUMNS: Record<string, Record<string, string>> = {
     sort_order: "INTEGER", // 가계부 편집에서 정한 순서 (없으면 입력 순서)
     memo: "TEXT",
     photos_json: "TEXT",
+    created_by: "TEXT", // 입력한 사람(로그인 계정 id). "나만 보기" 비용은 이 사람에게만 보인다.
   },
 };
 let schemaReady: Promise<void> | null = null;
@@ -178,7 +179,8 @@ async function getTripRowByShareId(db: D1Database, shareId: string) {
   return db.prepare(`SELECT * FROM trips WHERE share_id = ?`).bind(shareId).first();
 }
 
-async function getFullTripPayload(db: D1Database, tripRow: any) {
+// viewerId: 지금 보는 사람. 다른 사람이 넣은 "나만 보기" 비용은 빼고 돌려준다.
+async function getFullTripPayload(db: D1Database, tripRow: any, viewerId?: string) {
   const [travelers, schedule, expenses] = await Promise.all([
     db.prepare(`SELECT * FROM travelers WHERE trip_id = ? ORDER BY rowid`).bind(tripRow.id).all(),
     db
@@ -191,7 +193,9 @@ async function getFullTripPayload(db: D1Database, tripRow: any) {
   return {
     trip: rowToTrip(tripRow, travelers.results ?? []),
     schedule: (schedule.results ?? []).map(rowToScheduleItem),
-    expenses: (expenses.results ?? []).map(rowToExpense),
+    expenses: (expenses.results ?? [])
+      .filter((r: any) => !r.private_only || !r.created_by || r.created_by === viewerId)
+      .map(rowToExpense),
   };
 }
 
@@ -447,7 +451,7 @@ export default {
         const tripRow = await getTripRowByShareId(db, shareId);
         await joinTrip(db, tripRow, user);
         const fresh = await getTripRowByShareId(db, shareId);
-        return json(await getFullTripPayload(db, fresh), 201);
+        return json(await getFullTripPayload(db, fresh, user?.id), 201);
       }
 
       // POST /api/trips  — 새 온라인 여행 생성 (만든 사람이 방장 멤버 + 첫 동행자)
@@ -466,7 +470,7 @@ export default {
 
         const tripRow = await getTripRowByShareId(db, shareId);
         await joinTrip(db, tripRow, user);
-        return json(await getFullTripPayload(db, tripRow), 201);
+        return json(await getFullTripPayload(db, tripRow, user?.id), 201);
       }
 
       // 이 아래 라우트는 모두 :shareId 를 가진다
@@ -507,7 +511,7 @@ export default {
         if (parts.length === 4 && parts[3] === "join" && method === "POST") {
           await joinTrip(db, tripRow, user);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // 여기부터는 이 여행의 멤버만 쓸 수 있다.
@@ -559,7 +563,7 @@ export default {
 
         // GET /api/trips/:shareId
         if (parts.length === 3 && method === "GET") {
-          return json(await getFullTripPayload(db, tripRow));
+          return json(await getFullTripPayload(db, tripRow, user?.id));
         }
 
         // GET /api/trips/:shareId/version  (가벼운 폴링용)
@@ -585,7 +589,7 @@ export default {
             )
             .run();
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/travelers — 동행자 추가
@@ -600,7 +604,7 @@ export default {
             .run();
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // DELETE /api/trips/:shareId/travelers/:travelerId
@@ -623,7 +627,7 @@ export default {
           await db.prepare(`DELETE FROM travelers WHERE id = ? AND trip_id = ?`).bind(parts[4], tripId).run();
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/schedule — 일정 생성/수정 (body.id 있으면 수정)
@@ -668,7 +672,7 @@ export default {
           }
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // DELETE /api/trips/:shareId/schedule/:itemId
@@ -677,7 +681,7 @@ export default {
           await db.prepare(`UPDATE expenses SET schedule_item_id = NULL WHERE schedule_item_id = ?`).bind(parts[4]).run();
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/schedule/reorder  { day, orderedIds: string[] }
@@ -696,7 +700,7 @@ export default {
           }
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/expenses — 지출 생성/수정
@@ -711,7 +715,8 @@ export default {
               .prepare(
                 `UPDATE expenses SET day=?, title=?, category=?, amount=?, currency=?, rate_to_krw=?, amount_krw=?,
                  place=?, schedule_item_id=?, private_only=?, paid_by=?, paid_by_count=?, split_with=?, split_count=?,
-                 payment_method=?, memo=?, photos_json=COALESCE(?, photos_json), updated_at=?
+                 payment_method=?, memo=?, photos_json=COALESCE(?, photos_json),
+                 created_by=COALESCE(created_by, ?), updated_at=?
                  WHERE id=? AND trip_id=?`
               )
               .bind(
@@ -719,7 +724,7 @@ export default {
                 body.amountKRW ?? Math.round(body.amount * (body.rateToKRW ?? 1)), body.place ?? null,
                 body.scheduleItemId ?? null, body.privateOnly ? 1 : 0, paidBy, body.paidByCount ?? 1,
                 splitWith, body.splitCount ?? 1, body.paymentMethod ?? null, body.memo ?? null, photosToJson(body.photos),
-                now, body.id, tripId
+                user?.id ?? null, now, body.id, tripId
               )
               .run();
           } else {
@@ -728,21 +733,21 @@ export default {
               .prepare(
                 `INSERT INTO expenses (id, trip_id, day, title, category, amount, currency, rate_to_krw, amount_krw, place,
                  schedule_item_id, private_only, paid_by, paid_by_count, split_with, split_count, source, import_key,
-                 payment_method, memo, photos_json, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 payment_method, memo, photos_json, created_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
               )
               .bind(
                 id, tripId, body.day ?? null, body.title, body.category, body.amount, body.currency,
                 body.rateToKRW ?? 1, body.amountKRW ?? Math.round(body.amount * (body.rateToKRW ?? 1)),
                 body.place ?? null, body.scheduleItemId ?? null, body.privateOnly ? 1 : 0, paidBy,
                 body.paidByCount ?? 1, splitWith, body.splitCount ?? 1, body.source ?? "manual", body.importKey ?? null,
-                body.paymentMethod ?? null, body.memo ?? null, photosToJson(body.photos), now, now
+                body.paymentMethod ?? null, body.memo ?? null, photosToJson(body.photos), user?.id ?? null, now, now
               )
               .run();
           }
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/expenses/reorder  { orderedIds: string[] } — 가계부 순서 저장
@@ -757,7 +762,7 @@ export default {
           );
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/expenses/delete  { ids: string[] } — 선택 삭제
@@ -767,7 +772,7 @@ export default {
           await db.batch(ids.map((id) => db.prepare(`DELETE FROM expenses WHERE id = ? AND trip_id = ?`).bind(id, tripId)));
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/schedule/delete  { ids: string[] } — 일정 선택 삭제
@@ -782,7 +787,7 @@ export default {
           );
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // DELETE /api/trips/:shareId/expenses/:expenseId
@@ -790,7 +795,7 @@ export default {
           await db.prepare(`DELETE FROM expenses WHERE id = ? AND trip_id = ?`).bind(parts[4], tripId).run();
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          return json(await getFullTripPayload(db, fresh));
+          return json(await getFullTripPayload(db, fresh, user?.id));
         }
 
         // POST /api/trips/:shareId/expenses/import  { csvText }
@@ -813,14 +818,14 @@ export default {
             await db
               .prepare(
                 `INSERT INTO expenses (id, trip_id, day, title, category, amount, currency, rate_to_krw, amount_krw, place,
-                 private_only, paid_by, paid_by_count, split_with, split_count, source, import_key, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'csv', ?, ?, ?)`
+                 private_only, paid_by, paid_by_count, split_with, split_count, source, import_key, created_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'csv', ?, ?, ?, ?)`
               )
               .bind(
                 newId("exp"), tripId, row.day ?? null, row.title, row.category, row.amount, row.currency,
                 row.rateToKRW, row.amountKRW, row.place ?? null, row.privateOnly ? 1 : 0,
                 JSON.stringify(row.paidBy), row.paidByCount, JSON.stringify(row.splitWith), row.splitCount,
-                row.importKey, now, now
+                row.importKey, user?.id ?? null, now, now
               )
               .run();
             existingKeys.add(row.importKey);
@@ -828,7 +833,7 @@ export default {
           }
           await bumpTripVersion(db, tripId);
           const fresh = await getTripRowByShareId(db, shareId);
-          const payload = await getFullTripPayload(db, fresh);
+          const payload = await getFullTripPayload(db, fresh, user?.id);
           return json({ ...payload, importResult: { added, duplicates: rows.length - added, unmappedHeaders } });
         }
       }

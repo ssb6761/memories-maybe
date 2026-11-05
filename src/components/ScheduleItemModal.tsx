@@ -177,7 +177,7 @@ export default function ScheduleItemModal({ open, day, initial, onClose, onSave,
               type="button"
               onClick={onAddExpense}
               disabled={deleting || saving}
-              className="shrink-0 rounded-xl border border-emerald-300 bg-emerald-50 px-7 py-3.5 text-[15px] font-semibold text-emerald-600 disabled:opacity-60"
+              className="shrink-0 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-600 disabled:opacity-60"
             >
               비용 추가
             </button>

@@ -142,7 +142,6 @@ export default function ShareSheet({
 
         {kind === "image" && (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-semibold text-ink-500">사진 만들기</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { key: "all" as const, label: "전체 일정", sub: "한 장으로" },
@@ -163,12 +162,8 @@ export default function ShareSheet({
             </div>
           </div>
         )}
-        {kind === "pdf" && (
-          <p className="mt-4 text-xs leading-relaxed text-ink-500">A4 크기인 PDF를 만들어요.</p>
-        )}
         {kind === "excel" && (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-semibold text-ink-500">엑셀 만들기</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { key: "schedule" as const, label: "일정", sub: "날짜별 일정표" },
@@ -200,21 +195,6 @@ export default function ShareSheet({
                 );
               })}
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-ink-500">
-              {excelParts.expenses && !excelParts.schedule ? (
-                <>
-                  날짜•항목•금액•결제한 사람•메모를
-                  <br />
-                  엑셀 파일로 만들어요.
-                </>
-              ) : (
-                <>
-                  날짜•시간•장소•카테고리•메모•항공편•구글 지도 링크를
-                  <br />
-                  엑셀 파일로 만들어요.
-                </>
-              )}
-            </p>
           </div>
         )}
 

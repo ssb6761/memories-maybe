@@ -223,19 +223,23 @@ export default function TripsPage() {
             </svg>
             여행 만들기
           </button>
-          <div className="mt-2 flex items-center justify-center gap-1 text-xs text-ink-400">
+          <div className="mt-2.5 flex items-center justify-center gap-2 text-xs">
             <button
               type="button"
               onClick={() => {
                 setShowJoinForm((v) => !v);
                 setShowOnlineForm(false);
               }}
-              className={`rounded-full px-2.5 py-1.5 font-medium ${showJoinForm ? "text-brand-600" : "text-ink-500"}`}
+              className={`rounded-full border px-3 py-1.5 font-medium active:scale-95 ${
+                showJoinForm ? "border-brand-300 bg-brand-50 text-brand-600" : "border-ink-200 bg-ink-50 text-ink-500"
+              }`}
             >
               초대 코드로 참여하기
             </button>
-            <span aria-hidden>·</span>
-            <Link href="/import" className="rounded-full px-2.5 py-1.5 font-medium text-ink-500">
+            <Link
+              href="/import"
+              className="rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 font-medium text-ink-500 active:scale-95"
+            >
               백업 파일 가져오기
             </Link>
           </div>

@@ -37,14 +37,10 @@ export function usePhotoAttach(photos: string[], onChange: (ids: string[]) => vo
     const files = Array.from(list).filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
     const room = MAX_PHOTOS - photosRef.current.length;
     // 웹에서는 사진 앱의 선택 창 자체에 "최대 몇 장"을 걸 수 없다(아이폰·안드로이드 모두).
-    // 대신 넘게 고르면 하나도 넣지 않고 다시 고르게 한다.
+    // 대신 넘게 고르면 앞에서 고른 순서대로 남은 자리만큼만 넣고 알려준다.
     if (files.length > room) {
-      alert(
-        room === MAX_PHOTOS
-          ? `사진은 최대 ${MAX_PHOTOS}장까지 고를 수 있어요. 다시 골라주세요.`
-          : `사진은 최대 ${MAX_PHOTOS}장까지예요. 지금은 ${room}장까지 고를 수 있어요. 다시 골라주세요.`
-      );
-      return;
+      alert(`사진은 최대 ${MAX_PHOTOS}장까지예요. 앞에서 고른 ${room}장만 추가할게요.`);
+      files.splice(room);
     }
     if (!files.length) return;
     setUploading(files.length);

@@ -5,6 +5,7 @@ import { ImportedExpenseDraft, parseTripleExpensesCsv } from "@/lib/csv";
 import { formatKRW } from "@/lib/currency";
 import { useBackToClose } from "@/lib/useBackToClose";
 import CloseIcon from "./CloseIcon";
+import { xlsxToCsv } from "@/lib/xlsxRead";
 
 interface Props {
   open: boolean;
@@ -68,7 +69,7 @@ export default function CsvImportModal({
     try {
       const { drafts, unmappedHeaders } = parseTripleExpensesCsv(text, tripId, travelerNames);
       if (drafts.length === 0) {
-        setErrorMsg("CSV에서 지출 데이터를 찾지 못했어요. 헤더 행을 확인해주세요.");
+        setErrorMsg("파일에서 지출 데이터를 찾지 못했어요. 첫 줄(제목 행)을 확인해주세요.");
         return;
       }
       setErrorMsg("");
@@ -78,11 +79,20 @@ export default function CsvImportModal({
       setUnmapped(unmappedHeaders);
       setStep("preview");
     } catch (err) {
-      setErrorMsg("CSV 파싱 중 오류가 발생했어요. 파일 형식을 확인해주세요.");
+      setErrorMsg("파일을 읽는 중 오류가 발생했어요. 파일 형식을 확인해주세요.");
     }
   }
 
   function handleFile(file: File) {
+    // 엑셀(xlsx)은 CSV 글자로 바꾼 뒤 똑같이 처리한다
+    if (/\.xlsx$/i.test(file.name) || file.type.includes("spreadsheetml")) {
+      file
+        .arrayBuffer()
+        .then(xlsxToCsv)
+        .then((text) => processText(text, file.name))
+        .catch((err) => setErrorMsg(err?.message ?? "엑셀 파일을 읽지 못했어요."));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => processText(String(reader.result ?? ""), file.name);
     reader.readAsText(file, "utf-8");
@@ -135,7 +145,7 @@ export default function CsvImportModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5">
       <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-pop animate-fade-in">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink-900">CSV 파일 가져오기</h2>
+          <h2 className="text-lg font-bold text-ink-900">엑셀 파일 가져오기</h2>
           <button
             onClick={() => {
               if (importing) return;
@@ -151,10 +161,7 @@ export default function CsvImportModal({
 
         {step === "select" && (
           <div className="space-y-3">
-            <p className="text-sm text-ink-600">
-              트리플 앱의 <b>가계부 &gt; 내보내기</b>로 받은 CSV 파일을 업로드하면 항목명, 금액,
-              통화, 환율, 결제자/분담자까지 자동으로 인식해서 가계부에 추가돼요.
-            </p>
+            <p className="text-sm text-ink-600">CSV 파일, 엑셀 파일을 업로드 하면 자동으로 인식해서 가계부에 추가돼요.</p>
             <div
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
@@ -166,17 +173,18 @@ export default function CsvImportModal({
               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-200 bg-ink-100/40 py-10 text-center"
             >
               <span className="text-3xl">📄</span>
-              <p className="text-sm font-medium text-ink-700">CSV 파일을 선택하거나 끌어다 놓으세요</p>
-              <p className="text-xs text-ink-400">.csv 파일만 지원</p>
+              <p className="text-sm font-medium text-ink-700">파일을 선택하거나 끌어다 놓으세요</p>
+              <p className="text-xs text-ink-400">.csv · .xlsx 파일 지원</p>
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) handleFile(f);
+                e.target.value = "";
               }}
             />
             {errorMsg && <p className="text-xs font-medium text-red-500">{errorMsg}</p>}

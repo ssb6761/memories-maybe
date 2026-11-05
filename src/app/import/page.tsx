@@ -22,7 +22,7 @@ function dayLabel(startDate: string, day: number) {
 }
 
 // 백업 파일 가져오기: 미리 받아 둔 백업 JSON(또는 트리플 페이지를 저장한 HTML)을 올리면
-// 날짜별 장소 · 메모 · 항공편을 그대로 새 여행으로 만든다. (가계부는 CSV 파일 가져오기로 따로)
+// 날짜별 장소 · 메모 · 항공편을 그대로 새 여행으로 만든다. (가계부는 엑셀 파일 가져오기로 따로)
 export default function ImportPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -206,7 +206,7 @@ export default function ImportPage() {
               다른 파일 고르기
             </button>
             <p className="text-center text-[11px] text-ink-400">
-              가계부는 여행을 만든 뒤 가계부 → CSV 파일 가져오기로 옮겨주세요.
+              가계부는 여행을 만든 뒤 가계부 → 엑셀 파일 가져오기로 옮겨주세요.
             </p>
           </div>
         </>

@@ -120,6 +120,7 @@ export default function ExpenseModal({
   const [paidBy, setPaidBy] = useState<string[]>([]);
   const [place, setPlace] = useState("");
   const [memo, setMemo] = useState("");
+  const [privateOnly, setPrivateOnly] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const photo = usePhotoAttach(photos, setPhotos);
   const { user } = useAuthUser();
@@ -129,7 +130,6 @@ export default function ExpenseModal({
   const [addPersonError, setAddPersonError] = useState("");
   // "그날 환율로 다시 불러오기"를 누를 때마다 값을 바꿔서 환율 조회를 다시 실행한다.
   const [rateNonce, setRateNonce] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -154,9 +154,9 @@ export default function ExpenseModal({
     setPaidBy(initial?.paidBy ?? (me ? [me.name] : []));
     setPlace(initial?.place ?? prefill?.place ?? "");
     setMemo(initial?.memo ?? "");
+    setPrivateOnly(initial?.privateOnly ?? false);
     setPhotos(initial?.photos ?? []);
     // (함께 항목은 화면에서 뺐다. 저장할 때 결제한 사람으로 채운다.)
-    setMenuOpen(false);
     setSaveError("");
     autoRateRef.current = !initial;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -282,7 +282,7 @@ export default function ExpenseModal({
         memo: memo.trim() || undefined,
         photos,
         scheduleItemId: scheduleItemId || undefined,
-        privateOnly: false,
+        privateOnly,
         paidBy,
         paidByCount: Math.max(1, paidBy.length),
         // "함께" 항목을 없앴으므로 각자 결제한 금액이 곧 그 사람의 지출이다.
@@ -299,7 +299,6 @@ export default function ExpenseModal({
   }
 
   async function handleDelete() {
-    setMenuOpen(false);
     if (!onDelete) return;
     if (!window.confirm(`'${initial?.title ?? "이 비용"}'을(를) 삭제하시겠습니까?`)) return;
     setDeleting(true);
@@ -342,28 +341,24 @@ export default function ExpenseModal({
         </button>
         <h1 className="text-lg font-medium text-ink-900">{initial ? "비용 수정" : "비용 추가"}</h1>
         {initial && onDelete && (
-          <div className="relative ml-auto">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
-              className="p-1 text-xl font-bold leading-none tracking-widest text-ink-700"
-              aria-label="더보기"
-            >
-              ···
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-9 z-10 w-28 overflow-hidden rounded-xl border border-ink-100 bg-white shadow-pop">
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="w-full px-4 py-3 text-left text-sm font-semibold text-red-500 active:bg-ink-50"
-                >
-                  {deleting ? "삭제 중..." : "삭제"}
-                </button>
-              </div>
-            )}
-          </div>
+          // 오른쪽 위 빨간 휴지통: 누르면 삭제 확인
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="-mr-2 ml-auto flex h-10 w-10 items-center justify-center rounded-full text-red-500 active:bg-red-50 disabled:opacity-50"
+            aria-label="삭제"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0l-.8 12a2 2 0 01-2 1.9H9.8a2 2 0 01-2-1.9L7 7m3 4v6m4-6v6"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         )}
       </div>
 
@@ -639,6 +634,9 @@ export default function ExpenseModal({
               {photo.error && <p className="mt-1 text-xs text-red-500">{photo.error}</p>}
             </div>
 
+            {/* 나만 보기 비용 */}
+            <PrivateOnlyToggle checked={privateOnly} onChange={setPrivateOnly} />
+
             {saveError && (
               <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">⚠️ {saveError}</p>
             )}
@@ -714,5 +712,40 @@ export default function ExpenseModal({
         </div>
       )}
     </div>
+  );
+}
+
+// "나만 보기 비용" 선택 칸 (가계부 비용 입력, 엑셀 파일 가져오기에서 같이 쓴다)
+export function PrivateOnlyToggle({
+  checked,
+  onChange,
+  label = "나만 보기 비용",
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center gap-3 text-left"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold text-ink-900">{label}</span>
+        <span className="mt-0.5 block text-xs text-ink-400">일행에게 보이지 않는 비용이며, 정산에서 제외됩니다.</span>
+      </span>
+      <span
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-brand-600" : "bg-ink-200"}`}
+        aria-hidden
+      >
+        <span
+          style={{ backgroundColor: "#fff" }}
+          className={`absolute top-0.5 h-6 w-6 rounded-full shadow transition-all ${checked ? "left-[22px]" : "left-0.5"}`}
+        />
+      </span>
+    </button>
   );
 }
