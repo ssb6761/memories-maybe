@@ -15,6 +15,7 @@ import {
   smoothMoveTo,
   smoothPanTo,
   zoomForBounds,
+  zoomToPin,
   type MapLabel,
 } from "@/lib/mapHelpers";
 
@@ -37,7 +38,8 @@ const SINGLE_PLACE_ZOOM = 15;
 // 움직임 원칙(지도는 되도록 덜 움직인다):
 //  - 처음 열 때는 지도를 숨긴 채 위치를 바로 잡고, 다 잡히면 부드럽게 나타난다.
 //  - DAY를 바꾸는 등 위치가 바뀔 때는 살짝 흐려졌다가 새 위치에서 선명해진다.
-//  - 핀을 고르면 핀이 살짝 커지고, 핀이 화면 가장자리·밖에 있을 때만 지도를 옮긴다.
+//  - 지도에서 핀을 누르면 그 핀으로 이동하며 두 단계 확대한다(최대 줌 16). 같은 핀을 다시 누르면 더 확대.
+//  - 일정 목록에서 고르면 핀이 살짝 커지고, 핀이 화면 가장자리·밖에 있을 때만 지도를 옮긴다.
 //  - 핀을 고를 때 핀 전체를 다시 그리지 않아서 깜빡임이 없다.
 export default function GoogleMap({ items, selectedId, onSelect, apiKey, destination }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,8 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
   // 지도를 핀 쪽으로 옮기는 건 "선택이 실제로 바뀌었을 때"만. 핀이 다시 그려질 때마다 옮기면
   // DAY 전환·장소 추가 때의 영역 맞추기 이동을 끊어먹는다.
   const lastPannedIdRef = useRef<string | null>(null);
+  // 지도에서 핀을 직접 눌러서 선택된 경우엔 그 핀 기준으로 확대한다(일정 목록에서 고른 경우는 확대 안 함).
+  const zoomOnSelectRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,7 +197,15 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
         title: item.name,
         zIndex: isSelected ? 999 : idx,
       });
-      marker.addListener("click", () => onSelectRef.current(item.id));
+      marker.addListener("click", () => {
+        if (selectedIdRef.current === item.id) {
+          // 이미 선택된 핀을 한 번 더 누르면 더 가까이 확대
+          zoomToPin(mapRef.current, { lat: item.lat!, lng: item.lng! });
+          return;
+        }
+        zoomOnSelectRef.current = true;
+        onSelectRef.current(item.id);
+      });
       markersRef.current.set(item.id, { marker, color });
     });
     enlargedIdRef.current = currentSelected && markersRef.current.has(currentSelected) ? currentSelected : null;
@@ -236,7 +248,12 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
     // 처음 위치를 잡기 전(지도가 숨겨져 있을 때)엔 이동하지 않는다.
     const selectionChanged = lastPannedIdRef.current !== selectedId;
     lastPannedIdRef.current = selectedId;
-    if (positionedRef.current && selectionChanged) smoothPanTo(mapRef.current, pos);
+    const zoomIn = zoomOnSelectRef.current;
+    zoomOnSelectRef.current = false;
+    if (positionedRef.current && selectionChanged) {
+      if (zoomIn) zoomToPin(mapRef.current, pos);
+      else smoothPanTo(mapRef.current, pos);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, ready, markerKey]);
 
