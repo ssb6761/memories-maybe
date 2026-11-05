@@ -6,7 +6,6 @@ import { categoryColor } from "@/lib/scheduleUtils";
 import { loadGoogleMapsScript } from "@/lib/googleMapsLoader";
 import {
   animateMarkerIcon,
-  applyMapTheme,
   createMapLabel,
   fitMapToDestination,
   isPlaceItem,
@@ -38,7 +37,7 @@ const SINGLE_PLACE_ZOOM = 15;
 // 움직임 원칙(지도는 되도록 덜 움직인다):
 //  - 처음 열 때는 지도를 숨긴 채 위치를 바로 잡고, 다 잡히면 부드럽게 나타난다.
 //  - DAY를 바꾸는 등 위치가 바뀔 때는 살짝 흐려졌다가 새 위치에서 선명해진다.
-//  - 지도에서 핀을 누르면 그 핀으로 이동하며 두 단계 확대한다(최대 줌 16). 같은 핀을 다시 누르면 더 확대.
+//  - 지도에서 핀을 누르면 그 핀으로 이동하고, 멀리서 보고 있었다면 줌 15까지만 확대한다(계속 확대되지 않음).
 //  - 일정 목록에서 고르면 핀이 살짝 커지고, 핀이 화면 가장자리·밖에 있을 때만 지도를 옮긴다.
 //  - 핀을 고를 때 핀 전체를 다시 그리지 않아서 깜빡임이 없다.
 export default function GoogleMap({ items, selectedId, onSelect, apiKey, destination }: Props) {
@@ -81,18 +80,11 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
           // 움직이게 한다. "greedy"는 한 손가락으로 바로 움직인다.
           gestureHandling: "greedy",
         });
-        applyMapTheme(mapRef.current);
         setReady(true);
       })
       .catch((err) => setError(err.message));
-    // 설정에서 밝은/어두운 화면을 바꾸면 지도 색도 바로 따라간다.
-    const observer = new MutationObserver(() => {
-      if (mapRef.current) applyMapTheme(mapRef.current);
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => {
       cancelled = true;
-      observer.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
@@ -199,7 +191,7 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
       });
       marker.addListener("click", () => {
         if (selectedIdRef.current === item.id) {
-          // 이미 선택된 핀을 한 번 더 누르면 더 가까이 확대
+          // 이미 선택된 핀을 다시 누르면: 멀리서 보고 있을 때만 그 핀으로 확대
           zoomToPin(mapRef.current, { lat: item.lat!, lng: item.lng! });
           return;
         }

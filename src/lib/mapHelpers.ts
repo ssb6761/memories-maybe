@@ -3,7 +3,6 @@
 //  - createMapLabel: 핀 위에 작게 장소 이름을 띄운다(트리플처럼)
 //  - placeNumbers: 일정 목록 카드와 지도 핀에 같은 번호를 매긴다
 //  - smoothMoveTo / smoothPanTo / zoomForBounds: 지도 이동을 덜 거칠게 한다
-//  - applyMapTheme: 편안한 회백색 지도(밝은 모드) / 기본 색(다크 모드)
 import { findDestination, primaryDestination } from "./destinations";
 
 export const SEOUL = { lat: 37.5665, lng: 126.978 };
@@ -153,29 +152,24 @@ export function smoothPanTo(map: any, position: { lat: number; lng: number } | a
   map.panTo(target);
 }
 
-// 지도에서 핀을 눌렀을 때: 핀 쪽으로 이동한 뒤 두 단계 확대한다(이미 충분히 가까우면 이동만).
-// 누를 때마다 조금씩 더 가까워지고, PIN_ZOOM_MAX보다 더 들어가지는 않는다.
-const PIN_ZOOM_MAX = 16;
+// 지도에서 핀을 눌렀을 때: 핀 쪽으로 이동하고, 지금 줌이 PIN_ZOOM보다 멀면 PIN_ZOOM까지만 확대한다.
+// 이미 그만큼 가깝거나 더 가까우면 확대하지 않는다(누를 때마다 계속 확대되지 않게).
+const PIN_ZOOM = 15;
 const pinZoomTokens = new WeakMap<object, object>();
 export function zoomToPin(map: any, position: { lat: number; lng: number } | any) {
   const gmaps = window.google.maps;
   const target = toLatLng(position);
   const current: number = map.getZoom() ?? 11;
-  const next = Math.min(current + 2, PIN_ZOOM_MAX);
-  const token = {};
-  pinZoomTokens.set(map, token);
-
-  const zoomIn = () => {
-    if (pinZoomTokens.get(map) !== token) return;
-    if (next > current) map.setZoom(next);
-  };
-  const center = map.getCenter();
-  const alreadyCentered =
-    center && Math.abs(center.lat() - target.lat()) < 1e-6 && Math.abs(center.lng() - target.lng()) < 1e-6;
-  if (alreadyCentered) {
-    zoomIn();
+  if (current >= PIN_ZOOM) {
+    smoothPanTo(map, target);
     return;
   }
+  const token = {};
+  pinZoomTokens.set(map, token);
+  const zoomIn = () => {
+    if (pinZoomTokens.get(map) !== token) return;
+    if ((map.getZoom() ?? 0) < PIN_ZOOM) map.setZoom(PIN_ZOOM);
+  };
   map.panTo(target);
   // 이동이 끝나면(idle) 확대. idle이 안 오는 경우를 대비해 시간 제한도 둔다.
   let done = false;
@@ -202,36 +196,6 @@ export function smoothMoveTo(map: any, position: { lat: number; lng: number } | 
     map.setCenter(target);
     map.setZoom(targetZoom);
   });
-}
-
-// ───────────── 편안한 지도 색감 ─────────────
-// 구글 기본 지도의 쨍한 원색과 가게·교통 아이콘을 덜어내고, 채도를 낮춘 밝은 회백색으로
-// 눈이 편하게 만든다. 물·공원만 아주 옅게 색을 남겨 어디가 어딘지는 알아볼 수 있게 한다.
-// 다크 모드에서는 이 색을 쓰지 않는다(밝은 바탕이 어두운 화면에서 튀기 때문).
-export const SOFT_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f4f5f7" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#7c8590" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#dfe3e8" }] },
-  { featureType: "landscape.man_made", elementType: "geometry", stylers: [{ color: "#eff1f4" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.park", stylers: [{ visibility: "on" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#e5eee4" }] },
-  { featureType: "poi.park", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { featureType: "road.highway", elementType: "geometry.fill", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#e3e7ec" }] },
-  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#d9e6ef" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#9aaebd" }] },
-];
-
-// 지금 앱이 다크 모드인지에 따라 지도 색을 맞춘다. 테마가 바뀌면 다시 부르면 된다.
-export function applyMapTheme(map: any) {
-  const dark = document.documentElement.classList.contains("dark");
-  map.setOptions({ styles: dark ? null : SOFT_MAP_STYLE });
 }
 
 // 핀 크기를 한 번에 바꾸지 않고 짧게 커지거나 작아지게 한다(튕김 없이 차분하게).
