@@ -352,20 +352,21 @@ export default function ScheduleTimeline({
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => setAddChoiceOpen(true)}
-            className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-2xl border border-ink-300 bg-white px-2 py-3 text-center text-[13px] font-semibold leading-tight text-ink-700 active:scale-[0.99]"
+            // 글자 길이만큼만 차지하고 절대 두 줄로 넘어가지 않게(whitespace-nowrap), 남는 폭은 장소 추가가 쓴다
+            className="flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-ink-300 bg-white px-2.5 py-3 text-center text-[12px] font-semibold leading-tight text-ink-700 active:scale-[0.99]"
           >
             항공 및 시간/메모 추가
           </button>
           <button
             onClick={() => setAddPlaceOpen(true)}
-            className="flex min-w-0 flex-[1.35] items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-brand-500 bg-brand-50 px-2 py-3 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
+            className="flex min-w-[88px] flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-2xl border border-brand-500 bg-brand-50 px-2 py-3 text-[13px] font-semibold text-brand-600 active:scale-[0.99]"
           >
             장소 추가
           </button>
           {items.length > 0 && (
             <button
               onClick={startReorder}
-              className="shrink-0 rounded-2xl border border-ink-200 bg-white px-3 py-3 text-xs font-semibold text-ink-500 active:scale-[0.99]"
+              className="shrink-0 rounded-2xl border border-ink-200 bg-white px-2.5 py-3 text-xs font-semibold text-ink-500 active:scale-[0.99]"
               aria-label="일정 순서 편집"
             >
               편집
