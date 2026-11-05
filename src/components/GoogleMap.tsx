@@ -6,6 +6,7 @@ import { categoryColor } from "@/lib/scheduleUtils";
 import { loadGoogleMapsScript } from "@/lib/googleMapsLoader";
 import {
   animateMarkerIcon,
+  applyMapTheme,
   createMapLabel,
   fitMapToDestination,
   isPlaceItem,
@@ -33,10 +34,10 @@ const SINGLE_PLACE_ZOOM = 15;
 // 실제 Google Maps JS API를 사용하는 지도. @react-google-maps/api 같은 래퍼 없이
 // 공식 script 태그 로딩 방식으로 직접 구현해 의존성을 최소화했다.
 //
-// 움직임 원칙:
+// 움직임 원칙(지도는 되도록 덜 움직인다):
 //  - 처음 열 때는 지도를 숨긴 채 위치를 바로 잡고, 다 잡히면 부드럽게 나타난다.
-//  - 그 뒤로 DAY를 바꾸는 등 위치가 바뀔 때는 순간이동 대신 스르륵 이동한다.
-//  - 핀을 고르면(지도에서든 일정 목록에서든) 그 핀으로 스르륵 이동하고, 핀이 톡 커진다.
+//  - DAY를 바꾸는 등 위치가 바뀔 때는 살짝 흐려졌다가 새 위치에서 선명해진다.
+//  - 핀을 고르면 핀이 살짝 커지고, 핀이 화면 가장자리·밖에 있을 때만 지도를 옮긴다.
 //  - 핀을 고를 때 핀 전체를 다시 그리지 않아서 깜빡임이 없다.
 export default function GoogleMap({ items, selectedId, onSelect, apiKey, destination }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -76,11 +77,18 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
           // 움직이게 한다. "greedy"는 한 손가락으로 바로 움직인다.
           gestureHandling: "greedy",
         });
+        applyMapTheme(mapRef.current);
         setReady(true);
       })
       .catch((err) => setError(err.message));
+    // 설정에서 밝은/어두운 화면을 바꾸면 지도 색도 바로 따라간다.
+    const observer = new MutationObserver(() => {
+      if (mapRef.current) applyMapTheme(mapRef.current);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => {
       cancelled = true;
+      observer.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
@@ -192,7 +200,7 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, markerKey]);
 
-  // 선택이 바뀌면: 이전 핀은 작게, 새 핀은 톡 커지게, 이름표는 살짝 떠오르게, 지도는 그 핀으로 스르륵.
+  // 선택이 바뀌면: 이전 핀은 작게, 새 핀은 살짝 커지게, 이름표는 살며시 나타나게.
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     const markers = markersRef.current;

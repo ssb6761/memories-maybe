@@ -2,7 +2,8 @@
 //  - fitMapToDestination: 여행지(도시/나라 이름)로 지도 영역을 맞춘다
 //  - createMapLabel: 핀 위에 작게 장소 이름을 띄운다(트리플처럼)
 //  - placeNumbers: 일정 목록 카드와 지도 핀에 같은 번호를 매긴다
-//  - smoothMoveTo / smoothPanTo / zoomForBounds: 지도를 순간이동 대신 스르륵 움직인다
+//  - smoothMoveTo / smoothPanTo / zoomForBounds: 지도 이동을 덜 거칠게 한다
+//  - applyMapTheme: 따뜻한 색감(밝은 모드) / 기본 색(다크 모드)
 import { findDestination, primaryDestination } from "./destinations";
 
 export const SEOUL = { lat: 37.5665, lng: 126.978 };
@@ -83,12 +84,11 @@ function applyView(map: any, view: { center: any; viewport?: any }, animate = fa
 }
 
 // ───────────── 부드러운 지도 이동 ─────────────
-// 구글 지도는 panTo(가까운 거리 이동)와 한 단계씩의 확대/축소는 알아서 애니메이션을 넣어준다.
-// 그래서 멀리 가야 할 때는 "조금 축소 → 스르륵 이동 → 다시 확대"를 한 단계씩 이어서
-// 비행기를 탄 것처럼 부드럽게 움직이게 한다. 새 이동이 시작되면 이전 이동은 그 자리에서 멈춘다.
+// 원칙: 지도는 되도록 덜 움직인다. 여러 단계로 축소·이동·확대하면 둥둥 떠다니는 느낌이 나서,
+//  - 가까운 곳(줌이 같고 지금 화면 근처)이면 panTo 한 번으로 짧게 미끄러지듯 이동하고
+//  - 그 외에는 지도를 살짝 흐리게 했다가 새 위치에서 다시 선명하게 보여준다(순간이동이 덜 거칠게).
 
 const MAX_ZOOM_FOR_BOUNDS = 17;
-const MAX_ZOOM_STEPS = 7; // 이보다 많이 확대/축소해야 할 만큼 멀면(다른 나라 등) 그냥 바로 이동
 
 // 지도 크기를 보고, 주어진 영역이 padding을 두고 딱 들어오는 줌 레벨을 계산한다(fitBounds와 같은 계산).
 export function zoomForBounds(map: any, bounds: any, padding = 48): number {
@@ -110,92 +110,100 @@ export function zoomForBounds(map: any, bounds: any, padding = 48): number {
   return Math.max(2, Math.min(Math.floor(Math.min(latZoom, lngZoom)), MAX_ZOOM_FOR_BOUNDS));
 }
 
-// 지도마다 지금 진행 중인 이동 번호. 번호가 바뀌면(새 이동 시작) 이전 이동은 멈춘다.
-const flightIds = new WeakMap<object, number>();
-function startFlight(map: any) {
-  const id = (flightIds.get(map) ?? 0) + 1;
-  flightIds.set(map, id);
-  return () => flightIds.get(map) === id;
-}
-
-// 지도가 움직임을 끝낼 때(idle)까지 기다린다. 이미 멈춰 있어서 idle이 안 오는 경우를 대비해 시간 제한을 둔다.
-function waitIdle(map: any, timeoutMs = 450): Promise<void> {
-  const gmaps = window.google.maps;
-  return new Promise((resolve) => {
-    let done = false;
-    const listener = gmaps.event.addListenerOnce(map, "idle", () => {
-      done = true;
-      resolve();
-    });
-    setTimeout(() => {
-      if (done) return;
-      gmaps.event.removeListener(listener);
-      resolve();
-    }, timeoutMs);
-  });
-}
-
 function toLatLng(pos: any) {
   const gmaps = window.google.maps;
   return pos instanceof gmaps.LatLng ? pos : new gmaps.LatLng(pos.lat, pos.lng);
 }
 
-// 줌은 그대로 두고 그 위치로 스르륵 이동한다(핀을 눌렀을 때 등).
-export function smoothPanTo(map: any, position: { lat: number; lng: number } | any) {
-  startFlight(map); // 진행 중이던 다른 이동은 멈춘다
-  map.panTo(toLatLng(position));
+// 지금 화면 가장자리에서 안쪽으로 margin(비율)만큼 들어온 영역 안에 있는지
+function isComfortablyVisible(map: any, pos: any, margin = 0.15) {
+  const b = map.getBounds();
+  if (!b) return false;
+  const ne = b.getNorthEast();
+  const sw = b.getSouthWest();
+  const dLat = (ne.lat() - sw.lat()) * margin;
+  const dLng = (ne.lng() - sw.lng()) * margin;
+  return (
+    pos.lat() < ne.lat() - dLat && pos.lat() > sw.lat() + dLat &&
+    pos.lng() < ne.lng() - dLng && pos.lng() > sw.lng() + dLng
+  );
 }
 
-// 목표 위치·줌까지 부드럽게 이동한다.
-export function smoothMoveTo(map: any, position: { lat: number; lng: number } | any, targetZoom: number) {
-  const gmaps = window.google.maps;
-  const alive = startFlight(map);
+const fadeTimers = new WeakMap<object, number>();
+// 지도를 살짝 흐리게 → 위치 바꾸기 → 다시 선명하게. 전체 0.3초 정도.
+function softJump(map: any, apply: () => void) {
+  const div: HTMLElement = map.getDiv();
+  const prev = fadeTimers.get(map);
+  if (prev) clearTimeout(prev);
+  div.style.transition = "opacity 120ms ease-out";
+  div.style.opacity = "0.4";
+  const t = window.setTimeout(() => {
+    apply();
+    div.style.transition = "opacity 220ms ease-out";
+    div.style.opacity = "";
+    fadeTimers.delete(map);
+  }, 120);
+  fadeTimers.set(map, t);
+}
+
+// 핀을 골랐을 때: 핀이 이미 화면 안쪽에 잘 보이면 움직이지 않고, 가장자리나 밖에 있을 때만 살짝 옮긴다.
+export function smoothPanTo(map: any, position: { lat: number; lng: number } | any) {
   const target = toLatLng(position);
-  const startZoom: number = map.getZoom() ?? targetZoom;
-  const from = map.getCenter();
+  if (isComfortablyVisible(map, target)) return;
+  map.panTo(target);
+}
 
-  // 이동하는 동안 출발점과 도착점이 둘 다 보이는 높이(peak)까지 먼저 축소한다.
-  let peak = Math.min(startZoom, targetZoom);
-  const view = map.getBounds();
-  if (from && view && !view.contains(target)) {
-    const both = new gmaps.LatLngBounds();
-    both.extend(from);
-    both.extend(target);
-    peak = Math.min(peak, zoomForBounds(map, both, 24));
-  }
-
-  const steps = startZoom - peak + (targetZoom - peak);
-  if (!from || steps > MAX_ZOOM_STEPS) {
-    // 너무 멀면 여러 단계 애니메이션이 오히려 어지럽다. 바로 이동.
-    map.setCenter(target);
-    map.setZoom(targetZoom);
+// 목표 위치·줌으로 이동한다(DAY 바꿈, 장소 추가 등).
+export function smoothMoveTo(map: any, position: { lat: number; lng: number } | any, targetZoom: number) {
+  const target = toLatLng(position);
+  const sameZoom = map.getZoom() === targetZoom;
+  if (sameZoom && map.getBounds()?.contains(target)) {
+    map.panTo(target);
     return;
   }
-
-  (async () => {
-    for (let z = startZoom - 1; z >= peak; z--) {
-      if (!alive()) return;
-      map.setZoom(z);
-      await waitIdle(map);
-    }
-    if (!alive()) return;
-    map.panTo(target);
-    await waitIdle(map, 700);
-    for (let z = peak + 1; z <= targetZoom; z++) {
-      if (!alive()) return;
-      map.setZoom(z);
-      await waitIdle(map);
-    }
-  })();
+  softJump(map, () => {
+    map.setCenter(target);
+    map.setZoom(targetZoom);
+  });
 }
 
-// 핀 크기를 한 번에 바꾸지 않고 짧게 커지거나 작아지게 한다.
+// ───────────── 따뜻한 지도 색감 ─────────────
+// 구글 기본 지도의 쨍한 원색과 가게·교통 아이콘을 덜어내고, 크림·베이지 톤으로 바꾼다.
+// 다크 모드에서는 이 색을 쓰지 않는다(밝은 베이지가 어두운 화면에서 튀기 때문).
+export const WARM_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#f6f0e6" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#7a6a58" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#fbf8f2" }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#e2d5c3" }] },
+  { featureType: "landscape.man_made", elementType: "geometry", stylers: [{ color: "#f1e9dc" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.park", stylers: [{ visibility: "on" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#e4ead2" }] },
+  { featureType: "poi.park", elementType: "labels", stylers: [{ visibility: "off" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+  { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#fdf8ef" }] },
+  { featureType: "road.highway", elementType: "geometry.fill", stylers: [{ color: "#f8e3c4" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#efd2a8" }] },
+  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#cfe2e3" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#8aa7a8" }] },
+];
+
+// 지금 앱이 다크 모드인지에 따라 지도 색을 맞춘다. 테마가 바뀌면 다시 부르면 된다.
+export function applyMapTheme(map: any) {
+  const dark = document.documentElement.classList.contains("dark");
+  map.setOptions({ styles: dark ? null : WARM_MAP_STYLE });
+}
+
+// 핀 크기를 한 번에 바꾸지 않고 짧게 커지거나 작아지게 한다(튕김 없이 차분하게).
 export function animateMarkerIcon(
   marker: any,
   makeIcon: (scale: number) => any,
   fromScale: number,
   toScale: number,
-  durationMs = 180
+  durationMs = 140
 ) {
   if (fromScale === toScale) {
     marker.setIcon(makeIcon(toScale));
@@ -204,17 +212,11 @@ export function animateMarkerIcon(
   const token = {};
   marker.__mmAnim = token;
   const start = performance.now();
-  const easeOutBack = (t: number) => {
-    // 살짝 튕기듯 커지는 느낌(커질 때만 튕김이 보이도록 작아질 땐 일반 감속)
-    if (toScale < fromScale) return 1 - Math.pow(1 - t, 3);
-    const c1 = 1.70158;
-    const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  };
+  const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
   const frame = (now: number) => {
     if (marker.__mmAnim !== token) return;
     const t = Math.min((now - start) / durationMs, 1);
-    marker.setIcon(makeIcon(fromScale + (toScale - fromScale) * easeOutBack(t)));
+    marker.setIcon(makeIcon(fromScale + (toScale - fromScale) * easeOut(t)));
     if (t < 1) requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
@@ -253,8 +255,8 @@ export function createMapLabel(map: any, position: { lat: number; lng: number },
         this.div.appendChild(this.box);
         Object.assign(this.box.style, {
           opacity: "0",
-          transform: "translateY(6px) scale(0.96)",
-          transition: "opacity 200ms ease-out, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          transform: "translateY(3px)",
+          transition: "opacity 160ms ease-out, transform 160ms ease-out",
           background: "#ffffff",
           color: "#111827",
           fontSize: "12px",
@@ -275,7 +277,7 @@ export function createMapLabel(map: any, position: { lat: number; lng: number },
         // 다음 프레임에 스타일을 바꿔야 transition이 실제로 재생된다.
         requestAnimationFrame(() => {
           this.box.style.opacity = "1";
-          this.box.style.transform = "translateY(0) scale(1)";
+          this.box.style.transform = "translateY(0)";
         });
       }
       draw() {
