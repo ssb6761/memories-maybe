@@ -55,6 +55,7 @@ interface Props {
     lat?: number;
     lng?: number;
     time?: string;
+    memo?: string;
   }) => void | Promise<void>;
 }
 
@@ -97,6 +98,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [category, setCategory] = useState<Category>("기타");
+  const [memo, setMemo] = useState("");
   const [time, setTime] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -127,6 +129,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
     setMockResults(searchMockPlaces(""));
     setDraft(EMPTY_DRAFT);
     setCategory("기타");
+    setMemo("");
     setTime("");
     setSaveError("");
     setPickedCenter(null);
@@ -411,6 +414,8 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
         center: { lat, lng },
         zoom: 15,
         disableDefaultUI: true,
+        // 두 손가락 안내 없이 한 손가락으로 바로 움직이게
+        gestureHandling: "greedy",
       });
       new gmaps.Marker({ position: { lat, lng }, map: previewMapInstanceRef.current });
     });
@@ -440,6 +445,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
         lat: hasCoords ? previewLat : undefined,
         lng: hasCoords ? previewLng : undefined,
         time: time || undefined,
+        memo: memo.trim() || undefined,
       });
       addRecentlyViewed({
         name: draft.name.trim(),
@@ -810,6 +816,17 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink-500">메모</label>
+              <textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                rows={3}
+                placeholder="메모를 입력하세요 (선택)"
+                className="w-full resize-none rounded-xl border border-ink-300 bg-white px-3 py-2.5 text-base outline-none focus:border-brand-500"
+              />
             </div>
           </div>
 

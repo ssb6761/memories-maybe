@@ -30,6 +30,7 @@ interface Props {
   dragging?: boolean;
   rowRef?: (el: HTMLDivElement | null) => void;
   rowStyle?: CSSProperties;
+  pressProps?: Record<string, any>; // 꾹 누르기(편집 모드 들어가기)
 }
 
 // 가계부 목록 한 줄. 평소엔 줄 전체를 누르면 상세(수정) 화면이 열리고, 편집 모드에선
@@ -44,6 +45,7 @@ export default function ExpenseRow({
   dragging = false,
   rowRef,
   rowStyle,
+  pressProps,
 }: Props) {
   const icon = CATEGORY_ICON[expense.category] ?? "💳";
   const showKRW = expense.currency !== "KRW";
@@ -51,6 +53,7 @@ export default function ExpenseRow({
   return (
     <div
       ref={rowRef}
+      {...pressProps}
       style={rowStyle}
       role="button"
       tabIndex={0}

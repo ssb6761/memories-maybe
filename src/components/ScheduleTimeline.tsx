@@ -1,5 +1,6 @@
 "use client";
 
+import { useLongPress } from "@/lib/useLongPress";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Category, Expense, ScheduleItem, Traveler } from "@/lib/types";
 import { sortByDistance, sortedDayItems } from "@/lib/scheduleUtils";
@@ -207,6 +208,11 @@ export default function ScheduleTimeline({
     setReorderMode(true);
   }
 
+  // 일정을 꾹 누르면 "편집"을 누른 것과 같이 편집 모드로 들어간다
+  const longPress = useLongPress(() => {
+    if (!reorderMode) startReorder();
+  });
+
   // ≡ 손잡이로 끌어서 순서 바꾸기
   const drag = useDragReorder(
     displayItems.map((i) => i.id),
@@ -287,7 +293,12 @@ export default function ScheduleTimeline({
           // 다음 항목이 장소면 그 위(이 사이 칸)에 앞 장소부터의 거리를 표시한다. 순서를 바꾸는 중엔 숨긴다.
           const nextKm = !reorderMode && !isLast ? kmBefore.get(displayItems[idx + 1].id) : undefined;
           return (
-            <div key={item.id} ref={drag.itemRef(item.id)} style={drag.itemStyle(item.id)}>
+            <div
+              key={item.id}
+              ref={drag.itemRef(item.id)}
+              {...(reorderMode ? {} : longPress(item.id))}
+              style={{ ...(reorderMode ? {} : longPress(item.id).style), ...drag.itemStyle(item.id) }}
+            >
               <ScheduleItemCard
                 item={item}
                 index={numbers.get(item.id) ?? 0}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useRemoteTrip } from "@/lib/useRemoteTrip";
-import { sortedDayItems, totalDaysOf } from "@/lib/scheduleUtils";
+import { sortedDayItems, totalDaysOf, todayDayOf } from "@/lib/scheduleUtils";
 import DayTabs from "@/components/DayTabs";
 import ScheduleTimeline from "@/components/ScheduleTimeline";
 import MapView from "@/components/MapView";
@@ -33,6 +33,16 @@ export default function RemoteSchedulePage({
   const [selectedId, setSelectedId] = useState<string | null>(searchParams?.focus ?? null);
 
   const totalDays = trip ? totalDaysOf(trip.startDate, trip.endDate) : 1;
+
+  // 일정 화면에 들어올 때 오늘이 여행 기간 중이면 오늘(DAY N)을 바로 보여준다.
+  // (주소에 ?day=가 있으면 그 날을 우선한다. 한 번만 맞추고, 그다음엔 사용자가 고른 날을 유지)
+  const autoDayDone = useRef(!!searchParams?.day);
+  useEffect(() => {
+    if (autoDayDone.current || !trip) return;
+    autoDayDone.current = true;
+    const today = todayDayOf(trip.startDate, totalDaysOf(trip.startDate, trip.endDate));
+    if (today) setSelectedDay(today);
+  }, [trip]);
   const dayItems = useMemo(() => sortedDayItems(schedule, selectedDay), [schedule, selectedDay]);
   // 일정 편집(순서 바꾸기·거리순 정렬) 중에는 바꾼 순서를 지도에 미리 보여준다
   const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);

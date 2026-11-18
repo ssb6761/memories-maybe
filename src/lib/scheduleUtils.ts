@@ -134,3 +134,15 @@ export function sortByDistance(items: ScheduleItem[]): string[] {
   });
   return ids;
 }
+
+// 오늘이 여행 며칠째(DAY N)인지. 여행 기간 밖이면 null.
+export function todayDayOf(startDate: string | undefined, totalDays: number): number | null {
+  if (!startDate) return null;
+  const [y, m, d] = startDate.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const start = new Date(y, m - 1, d);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((today.getTime() - start.getTime()) / 86400000) + 1;
+  return diff >= 1 && diff <= totalDays ? diff : null;
+}

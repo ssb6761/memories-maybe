@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { Expense, ScheduleItem, Trip } from "@/lib/types";
 import { totalDaysOf } from "@/lib/scheduleUtils";
 import { calculateSettlement } from "@/lib/settlement";
-import { formatKRW } from "@/lib/currency";
+import { formatAmount, formatKRW } from "@/lib/currency";
 import ExpenseRow from "./ExpenseRow";
 import { useDragReorder } from "@/lib/useDragReorder";
+import { useLongPress } from "@/lib/useLongPress";
 import ExpenseModal from "./ExpenseModal";
 import CsvImportModal from "./CsvImportModal";
 import SettlementPanel from "./SettlementPanel";
@@ -105,6 +106,19 @@ export default function ExpensesView({
   }, [visible]);
 
   const grandTotalKRW = visible.reduce((sum, e) => sum + e.amountKRW, 0);
+  // 현지 화폐 합계 (원화 말고 쓴 통화별로) — 합계 지출 밑에 작게 보여준다
+  const currencyTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    visible.forEach((e) => {
+      if (e.currency !== "KRW") map.set(e.currency, (map.get(e.currency) ?? 0) + (e.amount || 0));
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [visible]);
+  // 날짜(여행준비·DAY N)를 골라 둔 상태에서 "+ 비용 추가"를 누르면 그 날짜로 열린다
+  const addPrefill = useMemo(
+    () => (dayFilter === "all" || dayFilter === "0" ? undefined : { day: parseInt(dayFilter, 10) }),
+    [dayFilter]
+  );
   // 정산 대상 = 동행자 + 가계부 정산 인원 + 예전 기록에만 남은 이름
   const settlementPeople = useMemo(() => {
     const list = trip.travelers.map((t) => ({ ...t }));
@@ -126,6 +140,13 @@ export default function ExpensesView({
     setEditError("");
     setEditMode(true);
   }
+
+  // 비용을 꾹 누르면 "편집"을 누른 것과 같이 편집 모드로 들어가고, 누른 항목이 선택된다
+  const longPress = useLongPress((id) => {
+    if (editMode) return;
+    startEdit();
+    setSelected(new Set([id]));
+  });
 
   // ≡ 손잡이로 끌어서 순서 바꾸기. 같은 날짜 묶음 안에서만 움직일 수 있다.
   const drag = useDragReorder(
@@ -302,6 +323,11 @@ export default function ExpensesView({
                   {dayFilter === "all" ? "전체" : dayFilter === "0" ? "여행준비" : `DAY ${dayFilter}`} 지출
                 </span>
                 <span className="text-lg font-extrabold">{formatKRW(grandTotalKRW)}</span>
+                {currencyTotals.length > 0 && (
+                  <span className="mt-0.5 text-[11px] font-medium leading-snug text-white/70">
+                    {currencyTotals.map(([cur, sum]) => formatAmount(Math.round(sum * 100) / 100, cur)).join(" · ")}
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => {
@@ -336,7 +362,8 @@ export default function ExpensesView({
                   <ExpenseRow
                     key={e.id}
                     rowRef={drag.itemRef(e.id)}
-                    rowStyle={drag.itemStyle(e.id)}
+                    rowStyle={{ ...(editMode ? {} : longPress(e.id).style), ...drag.itemStyle(e.id) }}
+                    pressProps={editMode ? undefined : longPress(e.id)}
                     expense={e}
                     onClick={() => {
                       setEditing(e);
@@ -364,6 +391,7 @@ export default function ExpensesView({
       <ExpenseModal
         open={modalOpen}
         initial={editing}
+        prefill={editing ? undefined : addPrefill}
         travelers={trip.travelers}
         scheduleItems={schedule}
         startDate={trip.startDate}

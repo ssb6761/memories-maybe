@@ -3,7 +3,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Expense, ScheduleItem, Trip } from "./types";
 import { api, ApiError, RemoteTripPayload } from "./api";
-import { insertIndexByTime, sortedDayItems } from "./scheduleUtils";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -122,25 +121,9 @@ function useRemoteTripState(shareId: string) {
     async (item: Partial<ScheduleItem> & { day: number; name: string }) => {
       const payload = await api.upsertScheduleItem(shareId, item);
       applyPayload(payload);
-      // 새로 추가한 일정에 시간이 있으면 같은 날 일정들 중 시간 순서에 맞는 자리로 옮긴다.
-      // (서버는 항상 맨 뒤에 붙이므로, 맨 뒤 = 방금 추가한 항목)
-      if (!item.id && item.time) {
-        const dayItems = sortedDayItems(payload.schedule, item.day);
-        const added = dayItems[dayItems.length - 1];
-        if (added) {
-          const others = dayItems.slice(0, -1);
-          const idx = insertIndexByTime(others, item.time);
-          if (idx < others.length) {
-            const ids = others.map((i) => i.id);
-            ids.splice(idx, 0, added.id);
-            try {
-              applyPayload(await api.reorderSchedule(shareId, item.day, ids));
-            } catch {
-              // 자리 옮기기에 실패해도 추가는 된 상태라 조용히 넘어간다
-            }
-          }
-        }
-      }
+      // 새로 추가한 일정은 항상 그날 일정의 맨 뒤에 붙는다(서버가 맨 뒤 번호를 준다).
+      // 예전엔 시간이 있으면 시간 순서 자리로 옮겼는데, 일정을 시간순으로 두지 않을 때
+      // 맨 뒤에서 두 번째 같은 엉뚱한 자리에 들어가서 뺐다.
     },
     [shareId]
   );

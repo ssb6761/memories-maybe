@@ -41,6 +41,9 @@ export default function ScheduleItemCard({
 }: Props) {
   const timeFormat = usePref("timeFormat");
   const isMemo = item.kind === "memo";
+  // 시간 값이 "13:30"처럼 제대로 된 경우만 시간으로 친다. 빈칸·공백·깨진 값(가져온 일정 등)은
+  // 시간도 안 보이고 보라색 점도 안 떠서 왼쪽이 비어 보였다 → 그런 경우는 시간 없음으로 본다.
+  const time = item.time && /^\d{1,2}:\d{2}/.test(item.time.trim()) ? item.time.trim() : undefined;
   const isFlight = item.kind === "flight";
   const flight = item.flight;
   const color = categoryColor(item.category);
@@ -56,7 +59,7 @@ export default function ScheduleItemCard({
         )}
         {isMemo ? (
           // 메모: 아이콘 없이, 시간이 있으면 시간만(아래), 없으면 보라색 점
-          item.time ? null : <span className="z-10 h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500 ring-4 ring-[#f7f8fa]" aria-hidden />
+          time ? null : <span className="z-10 h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500 ring-4 ring-[#f7f8fa]" aria-hidden />
         ) : isFlight ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm">
             <Emoji e="✈️" size={15} />
@@ -69,8 +72,8 @@ export default function ScheduleItemCard({
             {index}
           </span>
         )}
-        {item.time && (
-          <span className={`z-10 ${isMemo ? "py-0.5" : "mt-1"} whitespace-pre-line rounded bg-[#f7f8fa] px-0.5 text-center text-[11px] font-medium leading-tight text-ink-500`}>{formatTime(item.time, timeFormat).replace(" ", "\n")}</span>
+        {time && (
+          <span className={`z-10 ${isMemo ? "py-0.5" : "mt-1"} whitespace-pre-line rounded bg-[#f7f8fa] px-0.5 text-center text-[11px] font-medium leading-tight text-ink-500`}>{formatTime(time, timeFormat).replace(" ", "\n")}</span>
         )}
       </div>
 
