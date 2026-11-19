@@ -224,11 +224,7 @@ function PhotoViewer({
   useEffect(() => {
     setMounted(true);
     widthRef.current = window.innerWidth;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    // 뒤 화면 스크롤 잠금은 useBackToClose가 맡는다
   }, []);
 
   useEffect(() => {

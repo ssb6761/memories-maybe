@@ -162,14 +162,6 @@ export default function ExpenseModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial, prefill]);
 
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   const totalDays = startDate && endDate ? Math.max(1, daysBetween(startDate, endDate)) : 0;
   // 환율 기준일: 고른 DAY의 실제 날짜. "여행준비"는 DAY 1 날짜. (아직 오지 않은 날짜는 최신 환율)

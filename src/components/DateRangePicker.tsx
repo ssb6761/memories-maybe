@@ -58,14 +58,6 @@ export default function DateRangePicker({ open, start, end, onClose, onConfirm }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   const months = useMemo(() => {
     const now = new Date();

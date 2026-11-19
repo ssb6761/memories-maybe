@@ -27,9 +27,33 @@ function whenIdle(fn: () => void) {
   else waiters.push(fn);
 }
 
+// 창이 열려 있는 동안 뒤의 화면(일정 목록 등)이 같이 스크롤되지 않게 막는다.
+// 아이폰에서는 창 안에서 쓸어도 뒤 화면이 스크롤되면서 오른쪽에 회색 스크롤 막대가 떠 보였다.
+// 창이 여러 개 겹쳐 열릴 수 있어서 열린 개수를 세고, 마지막 창이 닫힐 때 풀어 준다.
+let scrollLocks = 0;
+function lockPageScroll() {
+  if (scrollLocks++ === 0) {
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overscrollBehavior = "none";
+  }
+  return () => {
+    if (--scrollLocks === 0) {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      document.documentElement.style.overscrollBehavior = "";
+    }
+  };
+}
+
 export function useBackToClose(open: boolean, onClose: () => void) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    return lockPageScroll();
+  }, [open]);
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
