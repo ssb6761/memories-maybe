@@ -474,7 +474,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       : `DAY ${day} 장소 추가`;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white">
       {/* 헤더 */}
       <div className="flex items-center gap-3 border-b border-ink-100 px-4 py-3">
         <button
@@ -572,7 +572,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-2">
+          <div className="scroll-no-indicator flex-1 overflow-y-auto px-4 py-2">
             {showRecentPanel ? (
               <div className="space-y-5 py-2">
                 {recentSearches.length > 0 && (
@@ -756,7 +756,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       )}
 
       {step === "confirm" && (
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="scroll-no-indicator flex-1 overflow-y-auto px-4 py-4">
           <div className="space-y-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-ink-500">장소명 *</label>
