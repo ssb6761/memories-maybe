@@ -336,13 +336,16 @@ export default function ScheduleTimeline({
       )}
 
       {/* 떠 있는 버튼 줄에 마지막 일정이 가려지지 않게 아래 여백 */}
-      <div className="h-24 md:hidden" aria-hidden />
+      <div className="h-20 md:hidden" aria-hidden />
 
       {reorderMode ? (
-        // 가계부 편집처럼 화면 아래(탭 바 바로 위)에 떠 있는 버튼 줄. 목록을 끝까지 내리지 않아도 된다.
+        // 탭 바(일정/가계부/여행관리) 바로 위에 붙어 있는 버튼 줄. 목록을 끝까지 내리지 않아도 된다.
         // PC(넓은 화면)에서는 목록 아래에 그대로 둔다.
-        <div className="fixed inset-x-0 bottom-[104px] z-20 px-4 md:static md:mt-3 md:px-0">
-          <div className="mx-auto flex max-w-2xl gap-2 rounded-2xl bg-white/95 p-2 shadow-pop backdrop-blur md:max-w-none md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
+        <div
+          className="fixed inset-x-0 z-20 border-t border-ink-100 bg-white px-4 py-2 md:static md:mt-3 md:border-t-0 md:bg-transparent md:p-0"
+          style={{ bottom: "var(--nav-h, 104px)" }}
+        >
+          <div className="mx-auto flex max-w-2xl gap-2 md:max-w-none">
           <button
             onClick={deleteChecked}
             disabled={checked.size === 0 || savingOrder}
@@ -367,10 +370,13 @@ export default function ScheduleTimeline({
           </div>
         </div>
       ) : (
-        // 가계부 편집처럼 화면 아래(탭 바 바로 위)에 떠 있는 버튼 줄. 목록을 끝까지 내리지 않아도 된다.
+        // 탭 바(일정/가계부/여행관리) 바로 위에 붙어 있는 버튼 줄. 목록을 끝까지 내리지 않아도 된다.
         // PC(넓은 화면)에서는 목록 아래에 그대로 둔다.
-        <div className="fixed inset-x-0 bottom-[104px] z-20 px-4 md:static md:mt-3 md:px-0">
-          <div className="mx-auto flex max-w-2xl gap-2 rounded-2xl bg-white/95 p-2 shadow-pop backdrop-blur md:max-w-none md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
+        <div
+          className="fixed inset-x-0 z-20 border-t border-ink-100 bg-white px-4 py-2 md:static md:mt-3 md:border-t-0 md:bg-transparent md:p-0"
+          style={{ bottom: "var(--nav-h, 104px)" }}
+        >
+          <div className="mx-auto flex max-w-2xl gap-2 md:max-w-none">
           <button
             onClick={() => setAddChoiceOpen(true)}
             // 글자 길이만큼만 차지하고 절대 두 줄로 넘어가지 않게(whitespace-nowrap), 남는 폭은 장소 추가가 쓴다

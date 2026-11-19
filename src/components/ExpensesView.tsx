@@ -274,8 +274,11 @@ export default function ExpensesView({
           {editMode ? (
             <div className="mt-3">
               {/* 선택 삭제 / 완료 / 취소는 화면 아래(하단 탭 바로 위)에 고정. 버튼 크기는 일정 편집과 같게. */}
-              <div className="fixed inset-x-0 bottom-[104px] z-20 px-4 md:bottom-6">
-                <div className="mx-auto flex max-w-2xl gap-2 rounded-2xl bg-white/95 p-2 shadow-pop backdrop-blur">
+              <div
+                className="fixed inset-x-0 z-20 border-t border-ink-100 bg-white px-4 py-2 md:border-t-0"
+                style={{ bottom: "var(--nav-h, 104px)" }}
+              >
+                <div className="mx-auto flex max-w-2xl gap-2">
                   <button
                     onClick={deleteSelected}
                     disabled={selected.size === 0 || busy}

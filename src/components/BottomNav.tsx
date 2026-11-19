@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Emoji from "./Emoji";
 
@@ -13,9 +14,29 @@ const TABS = [
 export default function BottomNav({ tripId, basePath }: { tripId?: string; basePath?: string }) {
   const pathname = usePathname();
   const base = basePath ?? `/trip/${tripId}`;
+  // 탭 바 높이를 CSS 변수(--nav-h)로 알려서, 일정·가계부의 떠 있는 버튼 줄이 탭 바 바로 위에 딱 붙게 한다
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const update = () => {
+      const fixed = getComputedStyle(el).position === "fixed";
+      root.style.setProperty("--nav-h", `${fixed ? el.getBoundingClientRect().height : 0}px`);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   return (
     <nav
+      ref={navRef}
       // 아이폰 홈 바에 붙지 않도록 아래 여백을 넉넉히(pb-10) 둬서 탭을 위로 올렸다.
       className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-white pb-10
                  md:static md:border-t-0 md:border-b md:bg-white md:pb-0"
