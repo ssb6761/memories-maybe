@@ -335,8 +335,14 @@ export default function ScheduleTimeline({
         <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">⚠️ {orderError}</p>
       )}
 
+      {/* 떠 있는 버튼 줄에 마지막 일정이 가려지지 않게 아래 여백 */}
+      <div className="h-24 md:hidden" aria-hidden />
+
       {reorderMode ? (
-        <div className="mt-3 flex gap-2">
+        // 가계부 편집처럼 화면 아래(탭 바 바로 위)에 떠 있는 버튼 줄. 목록을 끝까지 내리지 않아도 된다.
+        // PC(넓은 화면)에서는 목록 아래에 그대로 둔다.
+        <div className="fixed inset-x-0 bottom-[104px] z-20 px-4 md:static md:mt-3 md:px-0">
+          <div className="mx-auto flex max-w-2xl gap-2 rounded-2xl bg-white/95 p-2 shadow-pop backdrop-blur md:max-w-none md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
           <button
             onClick={deleteChecked}
             disabled={checked.size === 0 || savingOrder}
@@ -358,9 +364,13 @@ export default function ScheduleTimeline({
           >
             취소
           </button>
+          </div>
         </div>
       ) : (
-        <div className="mt-3 flex gap-2">
+        // 가계부 편집처럼 화면 아래(탭 바 바로 위)에 떠 있는 버튼 줄. 목록을 끝까지 내리지 않아도 된다.
+        // PC(넓은 화면)에서는 목록 아래에 그대로 둔다.
+        <div className="fixed inset-x-0 bottom-[104px] z-20 px-4 md:static md:mt-3 md:px-0">
+          <div className="mx-auto flex max-w-2xl gap-2 rounded-2xl bg-white/95 p-2 shadow-pop backdrop-blur md:max-w-none md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
           <button
             onClick={() => setAddChoiceOpen(true)}
             // 글자 길이만큼만 차지하고 절대 두 줄로 넘어가지 않게(whitespace-nowrap), 남는 폭은 장소 추가가 쓴다
@@ -383,6 +393,7 @@ export default function ScheduleTimeline({
               편집
             </button>
           )}
+          </div>
         </div>
       )}
 

@@ -276,6 +276,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       if (cancelled || !browseMapRef.current) return;
       const gmaps = window.google.maps;
       const map = new gmaps.Map(browseMapRef.current, {
+        keyboardShortcuts: false, // 지도 아래 "키보드 단축키" 표시 숨김
         center: lastViewRef.current?.center ?? SEOUL,
         zoom: 12,
         disableDefaultUI: true,
@@ -367,6 +368,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       if (cancelled || !mapPickRef.current) return;
       const gmaps = window.google.maps;
       const map = new gmaps.Map(mapPickRef.current, {
+        keyboardShortcuts: false, // 지도 아래 "키보드 단축키" 표시 숨김
         // 고른 장소가 없으면 방금 보던 지도(여행지/저장한 장소 근처)에서 시작한다.
         center: hasPrev ? { lat: prevLat, lng: prevLng } : lastViewRef.current?.center ?? SEOUL,
         zoom: 16,
@@ -411,6 +413,7 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
       if (cancelled || !previewMapRef.current) return;
       const gmaps = window.google.maps;
       previewMapInstanceRef.current = new gmaps.Map(previewMapRef.current, {
+        keyboardShortcuts: false, // 지도 아래 "키보드 단축키" 표시 숨김
         center: { lat, lng },
         zoom: 15,
         disableDefaultUI: true,
@@ -830,9 +833,9 @@ export default function AddPlaceScreen({ open, day, savedPlaces = [], destinatio
             </div>
           </div>
 
-          {/* 추가 버튼을 화면 맨 아래에 붙여두면 아이폰 홈 바 근처라 누르기 불편해서,
-              입력칸 바로 아래로 올렸다. */}
-          <div className="mt-6 pb-10">
+          {/* 추가 버튼은 화면 아래에 계속 떠 있게(sticky) 해서, 입력칸이 길어져도 내리지 않고 누를 수 있게 한다.
+              아이폰 홈 바에 붙지 않도록 아래 여백을 둔다. */}
+          <div className="sticky bottom-0 -mx-4 mt-6 border-t border-ink-100 bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
             {saveError && (
               <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
                 ⚠️ {saveError}

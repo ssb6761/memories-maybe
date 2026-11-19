@@ -58,8 +58,8 @@ export default function ScheduleItemCard({
           <span className="absolute bottom-0 left-1/2 top-1/2 w-[2px] -translate-x-1/2 bg-[#bcc2ca]" aria-hidden />
         )}
         {isMemo ? (
-          // 메모: 아이콘 없이, 시간이 있으면 시간만(아래), 없으면 보라색 점
-          time ? null : <span className="z-10 h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500 ring-4 ring-[#f7f8fa]" aria-hidden />
+          // 메모: 보라색 점 (시간이 있으면 장소처럼 점 아래에 시간)
+          <span className="z-10 h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500 ring-4 ring-[#f7f8fa]" aria-hidden />
         ) : isFlight ? (
           <span className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm">
             <Emoji e="✈️" size={15} />
@@ -73,7 +73,7 @@ export default function ScheduleItemCard({
           </span>
         )}
         {time && (
-          <span className={`z-10 ${isMemo ? "py-0.5" : "mt-1"} whitespace-pre-line rounded bg-[#f7f8fa] px-0.5 text-center text-[11px] font-medium leading-tight text-ink-500`}>{formatTime(time, timeFormat).replace(" ", "\n")}</span>
+          <span className={`z-10 mt-1 whitespace-pre-line rounded bg-[#f7f8fa] px-0.5 text-center text-[11px] font-medium leading-tight text-ink-500`}>{formatTime(time, timeFormat).replace(" ", "\n")}</span>
         )}
       </div>
 

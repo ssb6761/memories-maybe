@@ -71,6 +71,7 @@ export default function GoogleMap({ items, selectedId, onSelect, apiKey, destina
       .then(() => {
         if (cancelled || !containerRef.current) return;
         mapRef.current = new window.google.maps.Map(containerRef.current, {
+        keyboardShortcuts: false, // 지도 아래 "키보드 단축키" 표시 숨김
           center: SEOUL,
           zoom: 11,
           disableDefaultUI: true,
